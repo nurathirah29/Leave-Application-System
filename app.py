@@ -24,7 +24,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 
 
 app = Flask(__name__)
-app.secret_key = 'secretKey'
+app.secret_key = ''
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
@@ -50,10 +50,10 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 # ─────────────────────────────────────────────
 def get_db():
     return mysql.connector.connect(
-        host='192.168.110.99',
+        host='localhost',
         user='root',
-        password='ERMsql999$',
-        database='hr_database'
+        password='',
+        database='leave_db'
     )
 
 def query_db(query, args=(), one=False):
@@ -119,7 +119,7 @@ def process_and_save_file(file, requester, start_date_str, department, leave_id,
     req_dept = (department or 'General').replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '')
     yymmdd   = datetime.strptime(start_date_str, "%Y-%m-%d").strftime("%y%m%d")
     
-    # Format: 260505_AD_ER0556_42_1.jpg
+    # Format: 260505_IT_EM001_42_1.jpg
     raw_name = f"{yymmdd}_{req_dept}_{requester}_{leave_id}_{index}.{'jpg' if is_image else ext}"
     filename = secure_filename(raw_name)
  
@@ -587,18 +587,18 @@ def is_backup_approver(employee_no):
 # ─────────────────────────────────────────────
 # Email
 # ─────────────────────────────────────────────
-EMAIL_ADDRESS = 'esystem@excel-rim.com'
-EMAIL_PASSWORD = 'Ersystem@2024$$'
-SMTP_SERVER = 'mail.excel-rim.com'
+EMAIL_ADDRESS = 'example@example.com'
+EMAIL_PASSWORD = ''
+SMTP_SERVER = 'mail.example.com'
 SMTP_PORT = 587
-SYSTEM_LINK = "http://192.168.110.99:916/calendar"
+SYSTEM_LINK = "#"
 
 
 # ─────────────────────────────────────────────
 # Backup Approver Config
 # ─────────────────────────────────────────────
-PRIMARY_APPROVER  = 'ER0001' 
-BACKUP_APPROVERS  = ['ER0948', 'ER0742'] 
+PRIMARY_APPROVER  = 'EM001' 
+BACKUP_APPROVERS  = ['EM002', 'EM003'] 
 
 def send_email(sender, recipients, subject, body):
     try:
@@ -1768,12 +1768,12 @@ def get_leave_documents(leave_id):
     result = []
     for doc in docs:
         result.append({
-            'id':            doc['id'],
-            'filename':      doc['filename'],
+            'id': doc['id'],
+            'filename': doc['filename'],
             'original_name': doc['original_name'] or doc['filename'],
-            'file_size':     doc['file_size'],
-            'url':           f"/uploads/{doc['filename']}",
-            'uploaded_at':   str(doc['uploaded_at'])
+            'file_size': doc['file_size'],
+            'url': f"/uploads/{doc['filename']}",
+            'uploaded_at': str(doc['uploaded_at'])
         })
     return jsonify(result)
 
@@ -2094,7 +2094,7 @@ def bulk_approve_leave():
             if leave['requester'] == employee_no:
                 skipped_count += 1
                 continue
-            if leave.get('department') == approver_dept and employee_no != 'ER0001':
+            if leave.get('department') == approver_dept and employee_no != 'EM001':
                 skipped_count += 1
                 continue
             if leave['approver_status'] != 'Pending':
@@ -3512,4 +3512,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=916, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
