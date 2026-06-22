@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Leave Application{% endblock %}</title>
+    <link href="/static/css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        .navbar {
+            padding: 0;
+        }
+
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            padding: 20px 0;
+            position: fixed;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 20px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #fff !important;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+            padding: 15px 20px 5px 20px;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.05);
+            margin: 10px 20px;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.75);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin: 4px 12px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar .nav-link:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            transform: translateX(4px);
+        }
+
+        .sidebar .nav-link.active {
+            background: #2563eb;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+        }
+
+        .sidebar .badge {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .sidebar-user {
+            margin: 20px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+
+        .sidebar-user-name {
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .new-badge {
+            font-size: 0.65rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 25px;
+        }
+
+        @media (max-width: 991px) {
+            .sidebar {
+                left: -260px;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <button class="navbar-toggler sidebar-toggle" type="button">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <a class="navbar-brand d-lg-none" href="#">
+                <i class="fas fa-user-circle"></i> Dashboard
+            </a>
+
+            <div class="sidebar" id="navbarNav">
+                <a class="navbar-brand sidebar-brand" href="#">
+                    <i class="fas fa-building"></i> Leave Management
+                </a>
+
+                <ul class="navbar-nav flex-column">
+
+                    <!-- ── MY LEAVE ── -->
+                    {% if permissions and 'leave.view' in permissions %}
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-user"></i> My Leave
+                    </div>
+                    {% endif %}
+
+                    {% if session.employee_no %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/profile') %}active{% endif %}" href="/profile">
+                            <i class="fas fa-id-card me-2"></i> Profile
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- ── MANAGEMENT ──
+                        Visible to: Sub-verifier, Verifier (leave.acknowledge)
+                                    AND/OR Approver (leave.approve)
+                    -->
+                    {% if permissions and ('leave.acknowledge' in permissions or 'leave.approve' in permissions) %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-tasks"></i> Management
+                    </div>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/view_leave') %}active{% endif %}" href="/view_leave">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Manage Requests 
+                                </span>
+                                {% if has_pending_manage_leave %}
+                                <span class="badge bg-danger new-badge">New</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/employee_history') %}active{% endif %}" href="/employee_history">
+                            <i class="fas fa-history me-2"></i> Employee History
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- ── HR MANAGEMENT ── -->
+                    {% if permissions and ('user.manage' in permissions) %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-cog"></i> HR Management
+                    </div>
+
+                    {% if 'user.manage' in permissions %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/hr/dashboard') %}active{% endif %}" href="/hr/dashboard">
+                            <i class="fas fa-user-shield me-2"></i> HR Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- ── GENERAL ── -->
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-globe"></i> General
+                    </div>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/calendar') %}active{% endif %}" href="/calendar">
+                            <i class="fas fa-calendar me-2"></i> Calendar
+                        </a>
+                    </li>
+
+                    <!-- ── USER INFO ── -->
+                    {% if session.employee_no %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-user">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-user-circle fa-lg me-2 text-light"></i>
+                            <div>
+                                <div class="sidebar-user-name">{{ employee_name }}</div>
+                                <div>
+                                    {% for role in roles %}
+                                    <span class="badge bg-secondary me-1">{{ role }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </ul>
+            </div>
+        </div>
+
+        <div class="sidebar-overlay"></div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid main-content">
+        {% if session.employee_no %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div></div>
+            <div>
+                <strong class="me-3">
+                    <i class="fas fa-user-circle"></i> {{ employee_name }}
+                </strong>
+                <a href="/logout" class="btn btn-logout btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <strong>
+                        {% if category == 'success' %}<i class="fas fa-check-circle"></i>
+                        {% elif category == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+                        {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                        {% elif category == 'info' %}<i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </strong>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="/static/css/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const sidebarToggle = document.querySelector('.sidebar-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        const navLinks = document.querySelectorAll('.sidebar .nav-link');
+
+        if (sidebarToggle && sidebar && sidebarOverlay) {
+            sidebarToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+            });
+
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+            });
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 992) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                    }
+                });
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 992) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

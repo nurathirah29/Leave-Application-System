@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Profile{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-circle"></i> Employee Profile</h2>
+</div>
+
+<div class="row g-3">
+    <!-- Left Column: Employee Info -->
+    <div class="col-lg-4 col-md-12">
+        <div class="profile-card h-100">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    {{ employee.Employee_name[0] if employee.Employee_name else 'U' }}
+                </div>
+                <div class="profile-info">
+                    <h3>{{ employee.Employee_name or 'N/A' }}</h3>
+                    <p><i class="fas fa-id-badge"></i> {{ employee.Employee_no or 'N/A' }}</p>
+                    <p><i class="fas fa-briefcase"></i> {{ employee.Position or 'N/A' }}</p>
+                </div>
+            </div>
+
+            <h5 class="mb-3"><i class="fas fa-info-circle"></i> Personal Information</h5>
+
+            <div class="info-row">
+                <div class="info-label">Department:</div>
+                <div class="info-value">{{ employee.Department or 'N/A' }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Role:</div>
+                <div class="info-value">
+                    <span class="badge bg-primary">{{ employee.roles or 'Employee' }}</span>
+                </div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ employee.Email or 'N/A' }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">{{ employee.Phone or 'N/A' }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Join Date:</div>
+                <div class="info-value">
+                    {{ employee.Register_date.strftime('%d %B %Y') if employee.Register_date else 'N/A' }}
+                </div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Years of Service:</div>
+                <div class="info-value">
+                    <strong>{{ "%.1f"|format(years_of_service) }} years</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-8 col-md-12">
+        <div class="d-flex flex-column h-100">
+            <!-- Summary -->
+            <div class="leave-summary-card">
+                <div class="row text-center">
+                    <div class="col-3">
+                        <div class="leave-stat">
+                            <p>Total Entitled</p>
+                            <h3>{{ total_entitled }}</h3>
+                            <p>Days / Year</p>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="leave-stat">
+                            <p>Prorated Entitled</p>
+                            <!-- <h3>{{ prorated_entitled }}</h3> -->
+                            <h3>#</h3>
+                            <p>Accrued</p>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="leave-stat">
+                            <p>Days Taken</p>
+                            <h3>{{ days_taken }}</h3>
+                            <p>Approved</p>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="leave-stat">
+                            <p>Balance</p>
+                            <!-- <h3 class="{{ 'text-danger' if total_balance < 0 else '' }}">
+                                {{ total_balance }}
+                            </h3> -->
+                            <h3>#</h3>
+                            <p>Remaining</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Request Statistics -->
+            <div class="profile-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-pie"></i> Leave Request Statistics ({{ current_year }})
+                </h5>
+                <div class="text-center">
+                    <span class="stat-badge pending">
+                        <i class="fas fa-clock"></i> Pending: {{ status_counts.get('Pending', 0) }}
+                    </span>
+                    <span class="stat-badge approved">
+                        <i class="fas fa-check-circle"></i> Approved: {{ status_counts.get('Approved', 0) }}
+                    </span>
+                    <span class="stat-badge rejected">
+                        <i class="fas fa-times-circle"></i> Rejected: {{ status_counts.get('Rejected', 0) }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Leave Usage -->
+            <div class="profile-card flex-grow-1">
+                <h5 class="mb-3"><i class="fas fa-calendar-check"></i> Leave Usage Details ({{ current_year }})</h5>
+
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Leave Type</th>
+                                <th class="text-end">Days Taken</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leave_breakdown %}
+                            <tr>
+                                <td>{{ leave.leave_type }}</td>
+                                <td class="text-end">{{ leave.days_taken }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No leave taken yet</td>
+                            </tr>
+                            {% endfor %}
+                            {% if leave_breakdown %}
+                            <tr class="table-active fw-bold">
+                                <td>Total</td>
+                                <td class="text-end">{{ total_used_days }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

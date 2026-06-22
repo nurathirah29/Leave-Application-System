@@ -1,0 +1,1333 @@
+{% extends "hr_base.html" %}
+
+{% block title %}Manage Leaves{% endblock %}
+{% block page_title %}Manage Leaves{% endblock %}
+
+{% block extra_css %}
+<style>
+    #leaveTable th,
+    #leaveTable td {
+        vertical-align: middle;
+        font-size: 0.82rem;
+        padding: 7px 10px;
+        white-space: nowrap;
+    }
+
+    #leaveTable thead th {
+        background: #f8f9fa;
+        font-weight: 700;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #6c757d;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .sub {
+        font-size: 0.70rem;
+        color: #6c757d;
+        line-height: 1.2;
+        display: block;
+    }
+    .main-val {
+        font-weight: 500;
+        line-height: 1.3;
+        display: block;
+    }
+
+    .col-type-reason {
+        white-space: normal;
+        max-width: 180px;
+    }
+    .col-type-reason .sub {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .row-toggle {
+        cursor: pointer;
+        background: none;
+        border: none;
+        color: #adb5bd;
+        padding: 2px 5px;
+        font-size: 0.78rem;
+        transition: color 0.15s, transform 0.2s;
+        line-height: 1;
+    }
+    .row-toggle:hover { color: #0d6efd; }
+    .row-toggle.open  { color: #0d6efd; transform: rotate(90deg); }
+
+    .detail-row td {
+        background: #f0f5ff;
+        padding: 12px 20px !important;
+        border-top: none !important;
+        border-bottom: 2px solid #dbe4ff !important;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px 28px;
+        font-size: 0.82rem;
+    }
+
+    .detail-grid .dl {
+        color: #6c757d;
+        font-size: 0.70rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 3px;
+    }
+
+    .detail-grid .dv {
+        color: #212529;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .exported-icon {
+        cursor: default;
+        font-size: 0.9rem;
+    }
+
+    #docOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0,0,0,0.75);
+        align-items: center;
+        justify-content: center;
+    }
+    #docOverlayBox {
+        background: #fff;
+        border-radius: 10px;
+        width: 92vw;
+        max-width: 1100px;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    #docOverlayHeader {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        border-bottom: 1px solid #dee2e6;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+    #docOverlayBody {
+        flex: 1;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        border: 1px solid #dee2e6;
+        font-size: 0.75rem;
+        cursor: pointer;
+        user-select: none;
+        transition: all .15s;
+        color: #6c757d;
+        background: #fff;
+        white-space: nowrap;
+    }
+    .status-chip:hover { border-color: #adb5bd; color: #495057; }
+    .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    .chip-active-pending  { background: #FAEEDA; border-color: #BA7517; color: #633806; }
+    .chip-active-approved { background: #EAF3DE; border-color: #3B6D11; color: #27500A; }
+    .chip-active-rejected { background: #FCEBEB; border-color: #A32D2D; color: #501313; }
+    .chip-active-cancel   { background: #F1EFE8; border-color: #5F5E5A; color: #2C2C2A; }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-height: 20px;
+        padding: 0 10px;
+
+        font-size: 0.62rem;
+        font-weight: 700;
+        line-height: 1;
+
+        border-radius: 4px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .stage-acknowledged { background: #3B6D11; color: #fff; }
+    .stage-rejected { background: #A32D2D; color: #fff; }
+    .stage-pending { background: #ffc677; color: #000000; }
+    .stage-na { background: #adb5bd; color: #fff; }
+
+    .status-approved { background:#198754; color:#fff; }
+    .status-rejected { background:#dc3545; color:#fff; }
+    .status-cancel { background:#6c757d; color:#fff; }
+    .status-pending { background:#ffc107; color:#212529; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="card mb-3">
+        <div class="card-body py-2 px-3">
+            <form method="GET" action="/hr/leaves" id="filterForm">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+
+                    <!-- Status chips -->
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="text-muted" style="font-size:0.72rem; white-space:nowrap;"><strong>Status</strong></span>
+                        {% set selected_statuses = request.args.getlist('status') %}
+                        {% for s, label, dot_color in [
+                            ('Pending',  'Pending',   '#BA7517'),
+                            ('Approved', 'Approved',  '#3B6D11'),
+                            ('Rejected', 'Rejected',  '#A32D2D'),
+                            ('Cancel',   'Cancelled', '#888780')
+                        ] %}
+                        <input type="checkbox" name="status" value="{{ s }}"
+                            id="chk{{ s }}" class="d-none"
+                            {% if s in selected_statuses %}checked{% endif %}>
+                        <label for="chk{{ s }}"
+                            class="status-chip {% if s in selected_statuses %}chip-active-{{ s | lower }}{% endif %}"
+                            data-status="{{ s | lower }}">
+                            <span class="chip-dot" style="background:{{ dot_color }};"></span>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <div class="vr mx-1" style="height:22px;"></div>
+
+                    <!-- Department -->
+                    <select class="form-select form-select-sm" name="department" style="width:auto; min-width:120px;">
+                        <option value="">All departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- Employee search -->
+                    <div class="position-relative">
+                        <i class="fas fa-search position-absolute text-muted"
+                        style="left:9px; top:50%; transform:translateY(-50%); font-size:0.72rem; pointer-events:none;"></i>
+                        <input type="text" class="form-control form-control-sm ps-4"
+                            name="search" placeholder="Employee name or no."
+                            value="{{ search }}" style="min-width:170px;">
+                    </div>
+
+                    <div class="vr mx-1" style="height:22px;"></div>
+
+                    <!-- Date range -->
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted" style="font-size:0.72rem; white-space:nowrap;"><strong>From</strong></span>
+                        <input type="date" class="form-control form-control-sm" name="date_from"
+                            value="{{ date_from }}" style="width:auto;">
+                        <span class="text-muted" style="font-size:0.72rem; white-space:nowrap;"><strong>To</strong></span>
+                        <input type="date" class="form-control form-control-sm" name="date_to"
+                            value="{{ date_to }}" style="width:auto;">
+                    </div>
+
+                    <div class="vr mx-1" style="height:22px;"></div>
+
+                    <!-- Filter actions -->
+                    <div class="d-flex gap-1">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-filter me-1"></i>Apply
+                        </button>
+                        <a href="/hr/leaves" 
+                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center p-0" 
+                        title="Clear filters" style="width:40px; height:40px;">
+                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                        </a>
+                    </div>
+
+                    <!-- Push right: record count + export -->
+                    <div class="ms-auto d-flex align-items-center gap-2">
+
+                        <div class="vr d-none d-lg-block" style="height:22px;"></div>
+
+                        <!-- Export dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-success dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-file-csv me-1"></i>Export
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="triggerExport('0'); return false;">
+                                        <i class="fas fa-circle text-secondary me-1" style="font-size:0.6rem; vertical-align:middle;"></i>
+                                        Unexported only
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="triggerExport('all'); return false;">
+                                        <i class="fas fa-file-csv text-success me-1"></i>
+                                        Export all
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table card -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+            <h6 class="mb-0 fw-semibold">
+                <i class="fas fa-list me-1"></i> Leaves List
+                <span class="badge bg-secondary ms-1">{{ total_leaves }}</span>
+            </h6>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted d-none d-md-inline">
+                    Showing {{ ((current_page - 1) * per_page) + 1 }}–{{ [current_page * per_page, total_leaves] | min }} of {{ total_leaves }}
+                </small>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            {% if paginated_leaves %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="leaveTable">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"></th>                               {# 1  chevron #}
+                            <th style="width:40px;">ID</th>                             {# 2  #}
+                            <th>Apply Date</th>                                         {# 3  #}
+                            <th>Emp Name</th>                                           {# 4  #}
+                            <th>Emp No & Dept</th>                                      {# 5  #}
+                            <th>Leave Type & Reason</th>                                {# 6  #}
+                            <th>Start Leave</th>                                        {# 7  #}
+                            <th>End Leave</th>                                          {# 8  #}
+                            <th style="width:60px;">Days</th>                           {# 9  #}
+                            <th class="text-center">Progress</th>                       {# 11 #}
+                            <th class="text-center">Status</th>                         {# 12 #}
+                            <th style="width:100px;" class="text-center">Actions</th>   {# 13 #}
+                            <th style="width:60px;" class="text-center">Exported</th>   {# 14 #}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in paginated_leaves %}
+
+                        <tr class="main-row" data-id="{{ leave.leave_id }}">
+
+                            {# 1 Chevron #}
+                            <td class="text-center">
+                                <button class="row-toggle"
+                                        onclick="toggleDetail('{{ leave.leave_id }}')"
+                                        id="toggle-{{ leave.leave_id }}"
+                                        title="Show details">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </td>
+
+                            {# 2 ID #}
+                            <td><strong>{{ leave.leave_id }}</strong></td>
+
+                            {# 3 Apply Date #}
+                            <td>
+                                {% if leave.created_at %}
+                                    <span class="main-val">{{ leave.created_at.strftime('%Y-%m-%d') }}</span>
+                                    <span class="sub">{{ leave.created_at.strftime('%H:%M') }}</span>
+                                {% else %}—{% endif %}
+                            </td>
+
+                            {# 4 Emp Name #}
+                            <td>{{ leave.requester_name }}</td>
+
+                            {# 5 Emp No & Dept #}
+                            <td>
+                                <span class="main-val">{{ leave.requester }}</span>
+                                <span class="sub">{{ leave.department or '—' }}</span>
+                            </td>
+
+                            {# 6 Leave Type & Reason #}
+                            <td class="col-type-reason">
+                                <span class="main-val">{{ leave.leave_type }}</span>
+                                <span class="sub">{{ leave.leave_reason or '—' }}</span>
+                            </td>
+
+                            {# 7 Start Leave #}
+                            <td>
+                                <span class="main-val">{{ leave.start_date.strftime('%Y-%m-%d') }}</span>
+                                {% if leave.start_remark %}
+                                    <span class="sub">{{ leave.start_remark }}</span>
+                                {% endif %}
+                            </td>
+
+                            {# 8 End Leave #}
+                            <td>
+                                <span class="main-val">{{ leave.end_date.strftime('%Y-%m-%d') }}</span>
+                                {% if leave.end_remark %}
+                                    <span class="sub">{{ leave.end_remark }}</span>
+                                {% endif %}
+                            </td>
+
+                            {# 9 Days #}
+                            <td class="text-center">
+                                <span><strong>{{ leave.no_days }}</strong></span>
+                            </td>
+
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    {% if leave.recommender %}
+                                    <span class="status-pill stage-{{ (leave.recommender_status or 'na')|lower }}" title="Sub-Verifier: {{ leave.recommender_status or '—' }}">SV</span>
+                                    {% endif %}
+                                    {% if leave.recommender_2 %}
+                                    <span class="status-pill stage-{{ (leave.recommender_2_status or 'na')|lower }}" title="Verifier: {{ leave.recommender_2_status or '—' }}">V</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            {# 12 Overall Status #}
+                            <td class="text-center">
+                                {% if leave.status == 'Approved' %}
+                                    <span class="status-pill status-approved">Approved</span>
+                                {% elif leave.status == 'Rejected' %}
+                                    <span class="status-pill status-rejected">Rejected</span>
+                                {% elif leave.status == 'Cancel' %}
+                                    <span class="status-pill status-cancel">Cancelled</span>
+                                {% else %}
+                                    <span class="status-pill status-pending">Pending</span>
+                                {% endif %}
+                            </td>
+
+                            {# 13 Actions #}
+                            <td class="text-center">
+                                {% if leave.status not in ['Cancel'] %}
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2 me-1"
+                                        onclick="hrOpenEditModal({{ leave.leave_id }})"
+                                        title="Edit leave">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+
+                            {# 14 Exported #}
+                            <td class="text-center">
+                                {% if leave.is_exported %}
+                                    <span class="exported-icon text-success"
+                                          title="Exported by {{ leave.exported_by }} on {{ leave.exported_at.strftime('%Y-%m-%d %H:%M') if leave.exported_at else 'N/A' }}"
+                                          data-bs-toggle="tooltip" data-bs-placement="left">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="exported-icon text-muted"
+                                          title="Not yet exported"
+                                          data-bs-toggle="tooltip" data-bs-placement="left">
+                                        <i class="far fa-circle"></i>
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        {# Detail row #}
+                        <tr class="detail-row" id="detail-{{ leave.leave_id }}" style="display:none;">
+                            <td colspan="13">
+                                <div class="detail-grid">
+                                    
+                                    <div>
+                                        <div class="dl">Documents</div>
+                                        <div class="dv" id="docCell-{{ leave.leave_id }}">
+                                            {% if leave.leave_id in leaves_with_docs %}
+                                            <button class="btn btn-sm btn-outline-primary py-0 px-2"
+                                                    onclick="loadHrDocs({{ leave.leave_id }})"
+                                                    id="docLoadBtn-{{ leave.leave_id }}">
+                                                <i class="fas fa-eye me-1"></i> View Docs
+                                            </button>
+                                            <div id="docList-{{ leave.leave_id }}" class="mt-2" style="display:none;"></div>
+                                            {% else %}
+                                            <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="dl">Original Doc Received</div>
+                                        <div class="dv">
+                                            {% if leave.leave_id in leaves_with_docs %}
+                                            <div class="d-flex align-items-center gap-2" id="docReceivedSection-{{ leave.leave_id }}">
+                                                <input class="form-check-input original-doc-checkbox"
+                                                    type="checkbox"
+                                                    id="docReceived{{ leave.leave_id }}"
+                                                    data-leave-id="{{ leave.leave_id }}"
+                                                    {% if leave.original_doc_received %}checked{% endif %}
+                                                    style="cursor:pointer; width:15px; height:15px;">
+                                                <label for="docReceived{{ leave.leave_id }}" class="mb-0" style="cursor:pointer;">
+                                                    {% if leave.original_doc_received %}
+                                                        <span class="text-success fw-semibold">
+                                                            <i class="fas fa-check-circle"></i> Received
+                                                        </span>
+                                                        {% if leave.original_doc_received_by %}
+                                                            <small class="text-muted ms-1">
+                                                                by {{ leave.original_doc_received_by }}
+                                                                {% if leave.original_doc_received_at %}
+                                                                    &nbsp;{{ leave.original_doc_received_at.strftime('%Y-%m-%d') }}
+                                                                {% endif %}
+                                                            </small>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-muted"><i class="fas fa-clock"></i> Pending</span>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    {% if leave.reject_reason %}
+                                    <div>
+                                        <div class="dl">Reject Reason</div>
+                                        <div class="dv text-danger">{{ leave.reject_reason }}</div>
+                                    </div>
+                                    {% endif %}
+
+                                </div>
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="px-3 py-2 border-top">
+                <nav>
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="?page={{ current_page - 1 }}{% for s in status_filter %}&status={{ s }}{% endfor %}&department={{ department_filter }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a>
+                        </li>
+                        {% if current_page > 3 %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for s in status_filter %}&status={{ s }}{% endfor %}&department={{ department_filter }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}">1</a>
+                        </li>
+                        {% if current_page > 4 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                        {% endif %}
+                        {% for page_num in range([1, current_page - 2] | max, [total_pages, current_page + 2] | min + 1) %}
+                        <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ page_num }}{% for s in status_filter %}&status={{ s }}{% endfor %}&department={{ department_filter }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ page_num }}</a>
+                        </li>
+                        {% endfor %}
+                        {% if current_page < total_pages - 2 %}
+                        {% if current_page < total_pages - 3 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ total_pages }}{% for s in status_filter %}&status={{ s }}{% endfor %}&department={{ department_filter }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ total_pages }}</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="?page={{ current_page + 1 }}{% for s in status_filter %}&status={{ s }}{% endfor %}&department={{ department_filter }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="p-5 text-center text-muted">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                No leave requests found.
+                {% if status_filter or department_filter or search or date_from or date_to %}
+                <a href="/hr/leaves" class="d-block mt-1 small">Clear filters</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Custom Document Overlay -->
+    <div id="docOverlay" onclick="handleOverlayClick(event)">
+        <div id="docOverlayBox">
+            <div id="docOverlayHeader">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        <i class="fas fa-file-alt text-primary me-1"></i>
+                        <span id="docPreviewName"></span>
+                    </div>
+                    <div id="docPreviewFilename" style="font-size:0.72rem; color:#6c757d;"></div>
+                </div>
+
+                <div id="imgControls" style="display:none; gap:4px; flex-shrink:0;">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="zoomImage(0.15)"><i class="fas fa-search-plus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="zoomImage(-0.15)"><i class="fas fa-search-minus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="rotateImage(-90)"><i class="fas fa-undo"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="rotateImage(90)"><i class="fas fa-redo"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="resetImage()"><i class="fas fa-sync"></i></button>
+                </div>
+
+                <div id="pdfControls" style="display:none; gap:4px; flex-shrink:0;">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="zoomPdf(0.1)"><i class="fas fa-search-plus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="zoomPdf(-0.1)"><i class="fas fa-search-minus"></i></button>
+                </div>
+
+                <a id="docDownloadBtn" href="#" download class="btn btn-sm btn-outline-success" style="flex-shrink:0;">
+                    <i class="fas fa-download"></i>
+                </a>
+                <button onclick="closeDocViewer()" class="btn btn-sm btn-outline-danger" style="flex-shrink:0;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="docOverlayBody">
+                <div id="docLoadingSpinner" style="display:flex; flex-direction:column;
+                     align-items:center; justify-content:center; height:400px; gap:10px;">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <span class="text-muted small">Loading...</span>
+                </div>
+
+                <div id="docImageContainer" style="display:none; text-align:center;
+                     padding:20px; background:#f8f9fa; min-height:400px;">
+                    <img id="docImageEl" src="" alt="Document preview"
+                         style="max-width:100%; max-height:78vh; object-fit:contain;
+                                border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.15);
+                                transform-origin:center; transition:transform 0.2s ease;">
+                </div>
+
+                <div id="docPdfContainer" style="display:none; height:80vh;">
+                    <iframe id="docPdfEl" src="" style="width:100%; height:100%; border:none;" title="PDF Preview"></iframe>
+                </div>
+
+                <div id="docUnsupportedContainer" style="display:none; flex-direction:column;
+                     align-items:center; justify-content:center; min-height:400px; gap:16px; padding:40px;">
+                    <i class="fas fa-file fa-4x text-muted"></i>
+                    <p class="text-muted mb-0">Preview not available for this file type.</p>
+                    <a id="docFallbackDownload" href="#" class="btn btn-primary" download>
+                        <i class="fas fa-download me-1"></i> Download to View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Modal -->
+    <div class="modal fade" id="cancelModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form id="cancelForm" method="POST">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title"><i class="fas fa-ban"></i> Cancel Leave</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to <strong>CANCEL</strong> this leave?</p>
+                        <p class="text-danger mb-0">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                        <button type="submit" class="btn btn-warning">Yes, Cancel</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- HR Edit Leave Modal -->
+    <div class="modal fade" id="hrEditLeaveModal" tabindex="-1" aria-labelledby="hrEditLeaveModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="hrEditLeaveModalLabel">
+                        <i class="fas fa-edit me-1"></i> Edit Leave Request
+                        <span id="hrEditLeaveIdBadge" class="badge bg-light text-primary ms-2" style="font-size:0.75rem;"></span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <!-- Loading spinner -->
+                    <div id="hrEditLoadingSpinner" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <div class="text-muted mt-2 small">Loading leave data…</div>
+                    </div>
+
+                    <!-- Form (hidden while loading) -->
+                    <div id="hrEditFormWrapper" style="display:none;">
+
+                        <!-- Employee info (read-only) -->
+                        <div class="row mb-3 p-2 rounded" style="background:#f8f9fa; border:1px solid #dee2e6;">
+                            <div class="col-md-6">
+                                <div class="small text-muted fw-semibold text-uppercase" style="font-size:0.68rem; letter-spacing:.04em;">Employee</div>
+                                <div class="fw-semibold" id="hrEditEmpName">—</div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="small text-muted fw-semibold text-uppercase" style="font-size:0.68rem; letter-spacing:.04em;">Emp No.</div>
+                                <div id="hrEditEmpNo">—</div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="small text-muted fw-semibold text-uppercase" style="font-size:0.68rem; letter-spacing:.04em;">Department</div>
+                                <div id="hrEditDept">—</div>
+                            </div>
+                        </div>
+
+                        <!-- Leave Type & Leave Reason -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="hrEditLeaveType">
+                                    <option value="">Select Leave Type</option>
+                                    <option>Annual Leave</option>
+                                    <option>Sick Leave</option>
+                                    <option>Unpaid Leave</option>
+                                    <option>Special Leave</option>
+                                    <option>Replacement Leave</option>
+                                    <option>Suspended Leave</option>
+                                    <option>HL Leave</option>
+                                    <option>Socso Leave</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <div class="invalid-feedback" id="hrEditLeaveTypeError"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Leave Reason</label>
+                                <input type="text" class="form-control" id="hrEditLeaveReason" placeholder="e.g. Business Trip">
+                            </div>
+                        </div>
+
+                        <!-- Dates -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="hrEditStartDate">
+                                <div class="invalid-feedback" id="hrEditStartDateError"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">End Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="hrEditEndDate">
+                                <div class="invalid-feedback" id="hrEditEndDateError"></div>
+                            </div>
+                        </div>
+
+                        <!-- Remark (single-day) -->
+                        <div class="mb-3" id="hrEditRemarkRow">
+                            <label class="form-label fw-semibold">Remark</label>
+                            <select class="form-select" id="hrEditRemark">
+                                <option value="Whole Day">Whole Day</option>
+                                <option value="1st Half Day">1st Half Day</option>
+                                <option value="2nd Half Day">2nd Half Day</option>
+                            </select>
+                        </div>
+
+                        <!-- Remarks (multi-day) -->
+                        <div class="row mb-3" id="hrEditMultiRemarkRow" style="display:none;">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Start Remark</label>
+                                <select class="form-select" id="hrEditStartRemark">
+                                    <option value="Whole Day">Whole Day</option>
+                                    <option value="1st Half Day">1st Half Day</option>
+                                    <option value="2nd Half Day">2nd Half Day</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">End Remark</label>
+                                <select class="form-select" id="hrEditEndRemark">
+                                    <option value="Whole Day">Whole Day</option>
+                                    <option value="1st Half Day">1st Half Day</option>
+                                    <option value="2nd Half Day">2nd Half Day</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- No. of Days -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">No. of Days <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="hrEditNoDays"
+                                   min="0.5" step="0.5" placeholder="e.g. 1.0" readonly>
+                            <div class="invalid-feedback" id="hrEditNoDaysError"></div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Status -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="hrEditStatus">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                                <option value="Cancel">Cancel</option>
+                            </select>
+                        </div>
+
+                        <!-- Reject Reason (shown only when Rejected) -->
+                        <div class="mb-3" id="hrEditRejectReasonRow" style="display:none;">
+                            <label class="form-label fw-semibold text-danger">
+                                Reject Reason <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="hrEditRejectReason" rows="2"
+                                      placeholder="State the reason for rejection…"></textarea>
+                            <div class="invalid-feedback" id="hrEditRejectReasonError"></div>
+                        </div>
+
+                        <!-- Cancel warning -->
+                        <div class="alert alert-warning py-2 mb-0" id="hrEditCancelWarning" style="display:none;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Setting status to <strong>Cancel</strong> will delete any uploaded documents for this leave.
+                        </div>
+
+                    </div><!-- /hrEditFormWrapper -->
+
+                </div><!-- /modal-body -->
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="hrEditSaveBtn"
+                            onclick="hrSaveLeaveEdit()" style="display:none;">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Sidebar
+        const sidebarToggle = document.querySelector('.sidebar-toggle');
+        const sidebar       = document.querySelector('.sidebar');
+        const overlay       = document.querySelector('.sidebar-overlay');
+
+        if (sidebarToggle && sidebar && overlay) {
+            sidebarToggle.addEventListener('click', e => {
+                e.preventDefault();
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+            });
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+            });
+        }
+
+        // Bootstrap tooltips (for exported icons)
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            new bootstrap.Tooltip(el, { trigger: 'hover' });
+        });
+
+        // Document received checkbox
+        document.querySelectorAll('.original-doc-checkbox').forEach(cb => {
+            cb.addEventListener('change', function () {
+                const leaveId   = this.dataset.leaveId;
+                const isChecked = this.checked;
+
+                if (!confirm(isChecked ?
+                    'Mark original document as received?' :
+                    'Unmark original document?')) {
+                    this.checked = !isChecked;
+                    return;
+                }
+
+                fetch(`/update_original_doc_status/${leaveId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ received: isChecked })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Error: ' + data.message);
+                        this.checked = !isChecked;
+                    }
+                })
+                .catch(() => {
+                    alert('Failed to update status');
+                    this.checked = !isChecked;
+                });
+            });
+        });
+
+        // Close doc overlay on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDocViewer();
+        });
+
+        // Wire up date + status change listeners for edit modal (once only)
+        document.getElementById('hrEditStartDate').addEventListener('change', _hrEditOnDateChange);
+        document.getElementById('hrEditEndDate').addEventListener('change', _hrEditOnDateChange);
+        document.getElementById('hrEditRemark').addEventListener('change', _hrEditOnDateChange);
+        document.getElementById('hrEditStartRemark').addEventListener('change', _hrEditOnDateChange);
+        document.getElementById('hrEditEndRemark').addEventListener('change', _hrEditOnDateChange);
+        document.getElementById('hrEditStatus').addEventListener('change', function () {
+            _hrEditToggleStatusDeps(this.value);
+        });
+
+    });
+
+    /* ─── Toggle Detail Row ─────────────────────────────────────────────────── */
+    function toggleDetail(id) {
+        const detailRow = document.getElementById('detail-' + id);
+        const btn       = document.getElementById('toggle-' + id);
+        const isOpen    = detailRow.style.display !== 'none';
+        detailRow.style.display = isOpen ? 'none' : 'table-row';
+        btn.classList.toggle('open', !isOpen);
+    }
+
+    /* ─── Load HR Docs ──────────────────────────────────────────────────────── */
+    function loadHrDocs(leaveId) {
+        const btn     = document.getElementById('docLoadBtn-' + leaveId);
+        const listDiv = document.getElementById('docList-' + leaveId);
+
+        // If already loaded, just toggle visibility
+        if (listDiv.dataset.loaded === '1') {
+            const isVisible = listDiv.style.display !== 'none';
+            listDiv.style.display = isVisible ? 'none' : 'block';
+            btn.innerHTML = isVisible
+                ? '<i class="fas fa-eye me-1"></i> View Docs'
+                : `<i class="fas fa-eye-slash me-1"></i> Hide Docs`;
+            return;
+        }
+
+        // First load
+        btn.disabled  = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading…';
+
+        fetch(`/leave_documents/${leaveId}`)
+            .then(r => r.json())
+            .then(docs => {
+                btn.disabled = false;
+
+                if (!docs || docs.length === 0) {
+                    btn.innerHTML = '<i class="fas fa-inbox me-1"></i> No Documents';
+                    btn.classList.replace('btn-outline-primary', 'btn-outline-secondary');
+                    btn.disabled = true;
+                    return;
+                }
+
+                let html = '';
+                docs.forEach(doc => {
+                    const ext   = doc.filename.split('.').pop().toLowerCase();
+                    const isImg = ['jpg', 'jpeg', 'png'].includes(ext);
+                    const icon  = isImg
+                        ? '<i class="fas fa-file-image text-info me-1"></i>'
+                        : '<i class="fas fa-file-pdf text-danger me-1"></i>';
+
+                    html += `
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            ${icon}
+                            <span class="small text-truncate" style="max-width:160px;" title="${doc.original_name}">
+                                ${doc.original_name}
+                            </span>
+                            <span class="text-muted small">
+                                ${doc.file_size ? (doc.file_size / 1024).toFixed(0) + 'KB' : ''}
+                            </span>
+                            <button class="btn btn-outline-primary py-0 px-1"
+                                    style="font-size:0.72rem;"
+                                    onclick="openDocViewer('${doc.url}', '${doc.original_name}', '${doc.filename}', '${ext}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>`;
+                });
+
+                listDiv.innerHTML      = html;
+                listDiv.dataset.loaded = '1';
+                listDiv.style.display  = 'block';
+
+                btn.innerHTML = `<i class="fas fa-eye-slash me-1"></i> Hide Docs (${docs.length})`;
+            })
+            .catch(() => {
+                btn.disabled  = false;
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Failed';
+            });
+    }
+
+    /* ─── Document Viewer ───────────────────────────────────────────────────── */
+    let imgScale = 1, imgRotation = 0, pdfScale = 1;
+
+    function showDocPanel(which) {
+        document.getElementById('docLoadingSpinner').style.display       = which === 'spinner'     ? 'flex'  : 'none';
+        document.getElementById('docImageContainer').style.display       = which === 'image'       ? 'block' : 'none';
+        document.getElementById('docPdfContainer').style.display         = which === 'pdf'         ? 'block' : 'none';
+        document.getElementById('docUnsupportedContainer').style.display = which === 'unsupported' ? 'flex'  : 'none';
+        document.getElementById('imgControls').style.display             = which === 'image'       ? 'flex'  : 'none';
+        document.getElementById('pdfControls').style.display             = which === 'pdf'         ? 'flex'  : 'none';
+    }
+
+    function openDocViewer(url, employeeName, filename, ext) {
+        document.getElementById('docPreviewName').textContent     = employeeName;
+        document.getElementById('docPreviewFilename').textContent = filename;
+        document.getElementById('docDownloadBtn').href            = url;
+        document.getElementById('docFallbackDownload').href       = url;
+
+        showDocPanel('spinner');
+
+        const overlay = document.getElementById('docOverlay');
+        overlay.style.display        = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+
+        if (imageExts.includes(ext.toLowerCase())) {
+            const img = document.getElementById('docImageEl');
+            imgScale = 1; imgRotation = 0;
+            img.style.transform = '';
+            img.onload  = () => showDocPanel('image');
+            img.onerror = () => showDocPanel('unsupported');
+            img.src = url + '?t=' + Date.now();
+        } else if (ext.toLowerCase() === 'pdf') {
+            const pdf = document.getElementById('docPdfEl');
+            pdf.onload  = () => showDocPanel('pdf');
+            pdf.onerror = () => showDocPanel('unsupported');
+            pdf.src = url;
+        } else {
+            showDocPanel('unsupported');
+        }
+    }
+
+    function closeDocViewer() {
+        document.getElementById('docOverlay').style.display = 'none';
+        document.body.style.overflow = '';
+        document.getElementById('docImageEl').src = '';
+        document.getElementById('docPdfEl').src   = '';
+        showDocPanel('spinner');
+        imgScale = 1; imgRotation = 0; pdfScale = 1;
+    }
+
+    function handleOverlayClick(e) {
+        if (e.target === document.getElementById('docOverlay')) closeDocViewer();
+    }
+
+    function zoomImage(step) {
+        imgScale = Math.min(5, Math.max(0.2, imgScale + step));
+        document.getElementById('docImageEl').style.transform = `scale(${imgScale}) rotate(${imgRotation}deg)`;
+    }
+    function rotateImage(deg) {
+        imgRotation += deg;
+        document.getElementById('docImageEl').style.transform = `scale(${imgScale}) rotate(${imgRotation}deg)`;
+    }
+    function resetImage() {
+        imgScale = 1; imgRotation = 0;
+        document.getElementById('docImageEl').style.transform = 'scale(1) rotate(0deg)';
+    }
+    function zoomPdf(step) {
+        pdfScale = Math.min(3, Math.max(0.5, pdfScale + step));
+        const iframe = document.getElementById('docPdfEl');
+        iframe.style.transform       = `scale(${pdfScale})`;
+        iframe.style.transformOrigin = 'top center';
+    }
+
+    /* ─── Cancel Leave Modal ────────────────────────────────────────────────── */
+    function openCancelModal(leaveId) {
+        document.getElementById('cancelForm').action = `/hr/leave/update/${leaveId}/cancel`;
+        new bootstrap.Modal(document.getElementById('cancelModal')).show();
+    }
+
+    /* ─── HR Edit Leave Modal ───────────────────────────────────────────────── */
+    let _hrEditLeaveId = null;
+
+    function hrOpenEditModal(leaveId) {
+        _hrEditLeaveId = leaveId;
+
+        // Reset UI state
+        document.getElementById('hrEditLeaveIdBadge').textContent     = '#' + leaveId;
+        document.getElementById('hrEditLoadingSpinner').style.display = 'block';
+        document.getElementById('hrEditFormWrapper').style.display    = 'none';
+        document.getElementById('hrEditSaveBtn').style.display        = 'none';
+        _hrEditClearErrors();
+
+        new bootstrap.Modal(document.getElementById('hrEditLeaveModal')).show();
+
+        fetch(`/hr/leave/edit/${leaveId}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error: ' + (data.message || 'Failed to load leave data'));
+                return;
+            }
+            _hrEditPopulate(data.leave);
+            document.getElementById('hrEditLoadingSpinner').style.display = 'none';
+            document.getElementById('hrEditFormWrapper').style.display    = 'block';
+            document.getElementById('hrEditSaveBtn').style.display        = 'inline-block';
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Network error while loading leave data.');
+        });
+    }
+
+    function _hrEditPopulate(leave) {
+        document.getElementById('hrEditEmpName').textContent = leave.requester_name || '—';
+        document.getElementById('hrEditEmpNo').textContent   = leave.requester      || '—';
+        document.getElementById('hrEditDept').textContent    = leave.department     || '—';
+
+        _hrEditSetSelect('hrEditLeaveType', leave.leave_type);
+        document.getElementById('hrEditLeaveReason').value = leave.leave_reason || '';
+        document.getElementById('hrEditStartDate').value   = leave.start_date   || '';
+        document.getElementById('hrEditEndDate').value     = leave.end_date     || '';
+        document.getElementById('hrEditNoDays').value      = leave.no_days      || '';
+
+        _hrEditSetSelect('hrEditRemark',      leave.remark       || 'Whole Day');
+        _hrEditSetSelect('hrEditStartRemark', leave.start_remark || 'Whole Day');
+        _hrEditSetSelect('hrEditEndRemark',   leave.end_remark   || 'Whole Day');
+        _hrEditToggleRemarkRows(leave.start_date, leave.end_date);
+
+        _hrEditSetSelect('hrEditStatus', leave.status || 'Pending');
+        _hrEditToggleStatusDeps(leave.status);
+        document.getElementById('hrEditRejectReason').value = leave.reject_reason || '';
+    }
+
+    function _hrEditSetSelect(elId, value) {
+        const sel = document.getElementById(elId);
+        if (!sel || value == null) return;
+
+        // Exact match
+        for (let opt of sel.options) {
+            if (opt.value === value) { sel.value = value; return; }
+        }
+        // Case-insensitive fallback
+        const lower = String(value).toLowerCase();
+        for (let opt of sel.options) {
+            if (opt.value.toLowerCase() === lower) { sel.value = opt.value; return; }
+        }
+        // Dynamic option for legacy leave types not in the list
+        if (elId === 'hrEditLeaveType' && value) {
+            sel.add(new Option(value, value));
+            sel.value = value;
+        }
+    }
+
+    function _hrEditToggleRemarkRows(start, end) {
+        const isSameDay = start && end && start === end;
+        document.getElementById('hrEditRemarkRow').style.display      = isSameDay ? 'block' : 'none';
+        document.getElementById('hrEditMultiRemarkRow').style.display = isSameDay ? 'none'  : 'flex';
+    }
+
+    function _hrEditOnDateChange() {
+        const start = document.getElementById('hrEditStartDate').value;
+        const end   = document.getElementById('hrEditEndDate').value;
+        _hrEditToggleRemarkRows(start, end);
+        _hrEditCalcDays(start, end);
+    }
+
+    function _hrEditCalcDays(start, end) {
+        if (!start || !end) return;
+
+        const s = new Date(start);
+        const e = new Date(end);
+
+        if (e < s) {
+            document.getElementById('hrEditEndDate').classList.add('is-invalid');
+            document.getElementById('hrEditEndDateError').textContent = 'End date must be after start date';
+            return;
+        }
+
+        document.getElementById('hrEditEndDate').classList.remove('is-invalid');
+        document.getElementById('hrEditEndDateError').textContent = '';
+
+        // Count working days
+        let workingDays = 0;
+        const cur = new Date(s);
+        while (cur <= e) {
+            const dow = cur.getDay();
+            if (dow !== 0 && dow !== 6) workingDays++;
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        let days = 0;
+        const isSameDay = start === end;
+
+        if (isSameDay) {
+            const remark = document.getElementById('hrEditRemark').value;
+            days = (remark === '1st Half Day' || remark === '2nd Half Day') ? 0.5 : 1;
+        } else {
+            const startRemark = document.getElementById('hrEditStartRemark').value;
+            const endRemark   = document.getElementById('hrEditEndRemark').value;
+            const startVal    = (startRemark === '1st Half Day' || startRemark === '2nd Half Day') ? 0.5 : 1;
+            const endVal      = (endRemark   === '1st Half Day' || endRemark   === '2nd Half Day') ? 0.5 : 1;
+            const middleDays  = Math.max(workingDays - 2, 0);
+            days = middleDays + startVal + endVal;
+        }
+
+        if (days > 0) document.getElementById('hrEditNoDays').value = days;
+    }
+
+    function _hrEditToggleStatusDeps(status) {
+        document.getElementById('hrEditRejectReasonRow').style.display = status === 'Rejected' ? 'block' : 'none';
+        const cancelWarn = document.getElementById('hrEditCancelWarning');
+        if (cancelWarn) cancelWarn.style.display = status === 'Cancel' ? 'block' : 'none';
+    }
+
+    function hrSaveLeaveEdit() {
+        _hrEditClearErrors();
+
+        const leaveType    = document.getElementById('hrEditLeaveType').value.trim();
+        const leaveReason  = document.getElementById('hrEditLeaveReason').value.trim();
+        const startDate    = document.getElementById('hrEditStartDate').value.trim();
+        const endDate      = document.getElementById('hrEditEndDate').value.trim();
+        const noDays       = parseFloat(document.getElementById('hrEditNoDays').value);
+        const status       = document.getElementById('hrEditStatus').value.trim();
+        const rejectReason = document.getElementById('hrEditRejectReason').value.trim();
+
+        const isSameDay   = startDate && endDate && startDate === endDate;
+        const remark      = isSameDay  ? document.getElementById('hrEditRemark').value      : null;
+        const startRemark = !isSameDay ? document.getElementById('hrEditStartRemark').value : null;
+        const endRemark   = !isSameDay ? document.getElementById('hrEditEndRemark').value   : null;
+
+        // Client-side validation
+        let valid = true;
+
+        if (!leaveType) {
+            document.getElementById('hrEditLeaveType').classList.add('is-invalid');
+            document.getElementById('hrEditLeaveTypeError').textContent = 'Leave type is required';
+            valid = false;
+        }
+        if (!startDate) {
+            document.getElementById('hrEditStartDate').classList.add('is-invalid');
+            document.getElementById('hrEditStartDateError').textContent = 'Start date is required';
+            valid = false;
+        }
+        if (!endDate) {
+            document.getElementById('hrEditEndDate').classList.add('is-invalid');
+            document.getElementById('hrEditEndDateError').textContent = 'End date is required';
+            valid = false;
+        }
+        if (startDate && endDate && endDate < startDate) {
+            document.getElementById('hrEditEndDate').classList.add('is-invalid');
+            document.getElementById('hrEditEndDateError').textContent = 'End date must be on or after start date';
+            valid = false;
+        }
+        if (isNaN(noDays) || noDays <= 0) {
+            document.getElementById('hrEditNoDays').classList.add('is-invalid');
+            document.getElementById('hrEditNoDaysError').textContent = 'Must be a positive number';
+            valid = false;
+        }
+        if (status === 'Rejected' && !rejectReason) {
+            document.getElementById('hrEditRejectReason').classList.add('is-invalid');
+            document.getElementById('hrEditRejectReasonError').textContent = 'Reject reason is required';
+            valid = false;
+        }
+        if (!valid) return;
+
+        if (status === 'Cancel' && !confirm('Are you sure you want to cancel this leave? This cannot be undone.')) return;
+
+        const saveBtn     = document.getElementById('hrEditSaveBtn');
+        saveBtn.disabled  = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+
+        fetch(`/hr/leave/edit/${_hrEditLeaveId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                leave_type:    leaveType,
+                leave_reason:  leaveReason,
+                start_date:    startDate,
+                end_date:      endDate,
+                remark:        remark,
+                start_remark:  startRemark,
+                end_remark:    endRemark,
+                no_days:       noDays,
+                status:        status,
+                reject_reason: rejectReason
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Changes';
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('hrEditLeaveModal')).hide();
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to save changes'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Changes';
+            alert('Network error. Please try again.');
+        });
+    }
+
+    function _hrEditClearErrors() {
+        document.querySelectorAll('#hrEditLeaveModal .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('#hrEditLeaveModal .invalid-feedback').forEach(el => el.textContent = '');
+    }
+
+    function triggerExport(exportedFilter) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('exported', exportedFilter);
+
+        const exportUrl = '/hr/leaves/export?' + params.toString();
+        console.log('Export URL:', exportUrl); 
+        
+        // 1. Trigger download directly
+        window.location.href = exportUrl;
+
+        // 2. After delay, refresh exported status on the page
+        setTimeout(() => {
+            fetch('/hr/leaves/exported_ids?' + params.toString())
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.ids) return;
+                    data.ids.forEach(id => _markRowExported(id, data.exported_by, data.exported_at));
+                });
+        }, 2000);
+    }
+
+    function _markRowExported(leaveId, exportedBy, exportedAt) {
+        const rows = document.querySelectorAll(`tr.main-row[data-id="${leaveId}"]`);
+        rows.forEach(row => {
+            // Find the exported cell (last td)
+            const cell = row.querySelector('td:last-child');
+            if (!cell) return;
+            const existing = cell.querySelector('.exported-icon');
+            if (existing && existing.classList.contains('text-success')) return; 
+
+            const title = `Exported by ${exportedBy} on ${exportedAt}`;
+            cell.innerHTML = `
+                <span class="exported-icon text-success"
+                    title="${title}"
+                    data-bs-toggle="tooltip" data-bs-placement="left">
+                    <i class="fas fa-check-circle"></i>
+                </span>`;
+
+            // Re-init tooltip on the new element
+            new bootstrap.Tooltip(cell.querySelector('[data-bs-toggle="tooltip"]'), { trigger: 'hover' });
+        });
+    }
+
+    // Status chip visual toggle
+    document.querySelectorAll('.status-chip').forEach(label => {
+        label.addEventListener('click', function () {
+            const status = this.dataset.status;
+            const cb = document.getElementById('chk' + status.charAt(0).toUpperCase() + status.slice(1));
+            const activeClass = 'chip-active-' + status;
+            // Use setTimeout(0) so it runs after the checkbox state has toggled
+            setTimeout(() => {
+                this.classList.toggle(activeClass, cb.checked);
+            }, 0);
+        });
+    });
+</script>
+{% endblock %}

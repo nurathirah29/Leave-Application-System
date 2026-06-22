@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Application{% endblock %}
+
+{% block content %}
+<!-- Upcoming Leaves - Clean Professional -->
+<div class="action-section">
+    <h4 class="mb-4">
+        <i class="fas fa-calendar-check text-success"></i> Upcoming Leaves
+    </h4>
+
+    {% if upcoming_leaves %}
+    <div class="list-group shadow-sm">
+        {% for leave in upcoming_leaves %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-semibold">
+                    {{ leave.start_date }}
+                    <small class="text-muted">to</small>
+                    {{ leave.end_date }}
+                </div>
+                <div class="text-muted small">
+                    {{ leave.leave_type }}
+                </div>
+            </div>
+            <!-- <span class="badge bg-success px-3 py-2">{{ leave.no_days }} day{{ 's' if leave.no_days > 1 else '' }}</span> -->
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="text-muted">No upcoming leaves.</p>
+    {% endif %}
+</div>
+
+<!-- Leave Requests -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-list"></i> All Leave Requests</h5>
+        <a href="/apply_leave" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Apply Leave
+        </a>
+    </div>
+    
+    <div class="card-body">
+        <!-- Filters - Single Row Layout (Matching HR Manage Leave) -->
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">All Status</option>
+                    {% set statuses = ['Pending', 'Acknowledged', 'Approved', 'Rejected'] %}
+                    {% for s in statuses %}
+                        <option value="{{ s }}" {% if filter_status == s %} selected {% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Leave Type</label>
+                <select class="form-select" name="leave_type">
+                    <option value="">All Types</option>
+                    {% set leave_types = ['Annual Leave', 'Sick Leave', 'Unpaid Leave', 'Special Leave', 'Replacement Leave', 'Suspended Leave', 'HL Leave', 'Socso Leave'] %}
+                    {% for type in leave_types %}
+                        <option value="{{ type }}" {% if filter_leave_type == type %} selected {% endif %}>{{ type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Month</label>
+                <select class="form-select" name="month">
+                    <option value="">All</option>
+                    {% for i in range(1, 13) %}
+                        <option value="{{ i }}" {% if filter_month == i %} selected {% endif %}>
+                            {{ ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i-1] }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" class="form-control" name="date_from" value="{{ filter_date_from }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" class="form-control" name="date_to" value="{{ filter_date_to }}">
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end gap-1">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <a href="{{ request.path }}" class="btn btn-secondary flex-fill" title="Reset">
+                    <i class="fas fa-redo"></i>
+                </a>
+            </div>
+        </form>
+
+        <!-- Leave Requests Table -->
+        {% if default_leaves %}
+        {% set has_rejected = default_leaves | selectattr('status', 'equalto', 'Rejected') | list | length > 0 %}
+        
+        <!-- Pagination Info -->
+        <div class="d-flex justify-content-end align-items-center mb-2">
+            <span class="text-muted">
+                Showing {{ ((current_page - 1) * per_page) + 1 }} to {{ [current_page * per_page, total_leaves] | min }} of {{ total_leaves }} entries
+            </span>
+            {% if filter_status or filter_leave_type or filter_month or filter_date_from or filter_date_to %}
+            <span class="badge bg-primary">
+                <i class="fas fa-filter"></i> Filtered
+            </span>
+            {% endif %}
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Type</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        {% if has_rejected %}<th>Reject Reason</th>{% endif %}
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in paginated_leaves %}
+                    <tr>
+                        {% set leave_status = leave.display_status %}
+                        <td><strong>{{ ((current_page - 1) * per_page) + loop.index }}</strong></td>
+                        <td>{{ leave.start_date }}</td>
+                        <td>{{ leave.end_date }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ leave.no_days }} day(s)</span>
+                        </td>
+                        <td>{{ leave.leave_type }}</td>
+                        <td>{{ leave.leave_reason }}</td>
+                        <td>
+                            {% if leave_status == 'Pending' %}
+                                <span class="status-badge status-pending">Pending</span>
+                            {% elif leave_status == 'Acknowledged' %}
+                                <span class="status-badge status-acknowledged">Acknowledged</span>
+                            {% elif leave_status == 'Approved' %}
+                                <span class="status-badge status-approved">Approved</span>
+                            {% else %}
+                                <span class="status-badge status-rejected">Rejected</span>
+                            {% endif %}
+                        </td>
+                        {% if has_rejected %}
+                        <td>
+                            {% if leave.display_status == 'Rejected' %}
+                                {{ leave.reject_reason or '-' }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td>
+                            <!-- View Button -->
+                            <button class="btn btn-sm btn-outline-primary"
+                                    data-leave='{{ leave | tojson | safe }}'
+                                    onclick="openViewLeaveModal(JSON.parse(this.dataset.leave))"
+                                    title="View">
+                                <i class="fas fa-eye"></i>
+                            </button>
+
+                            <!-- Edit Button - only if can_edit is True and status is Pending -->
+                            {% if leave.can_edit and leave.status == 'Pending' %}
+                            <button class="btn btn-sm btn-outline-warning"
+                                    data-leave='{{ leave | tojson | safe }}'
+                                    onclick="openEditLeaveModal(JSON.parse(this.dataset.leave))"
+                                    title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger cancel-leave-btn"
+                                    data-leave-id="{{ leave.leave_id }}"
+                                    title="Cancel">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <!-- Previous Button -->
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ current_page - 1 }}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                
+                <!-- First Page -->
+                {% if current_page > 3 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">1</a>
+                </li>
+                {% if current_page > 4 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                {% endif %}
+                
+                <!-- Page Numbers -->
+                {% for page_num in range([1, current_page - 2] | max, [total_pages, current_page + 2] | min + 1) %}
+                <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ page_num }}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">{{ page_num }}</a>
+                </li>
+                {% endfor %}
+                
+                <!-- Last Page -->
+                {% if current_page < total_pages - 2 %}
+                {% if current_page < total_pages - 3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ total_pages }}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">{{ total_pages }}</a>
+                </li>
+                {% endif %}
+                
+                <!-- Next Button -->
+                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ current_page + 1 }}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No leave requests found. 
+            {% if filter_status or filter_leave_type or filter_month or filter_date_from or filter_date_to %}
+                Try adjusting your filters or <a href="{{ request.path }}">reset filters</a>.
+            {% else %}
+                <a href="/apply_leave">Apply for your first leave</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- VIEW LEAVE MODAL -->
+<div class="modal fade" id="viewLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i> Leave Request Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Requester Name:</label>
+                        <p id="viewRequesterName"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Department:</label>
+                        <p id="viewDepartment"></p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Leave Type:</label>
+                        <p id="viewLeaveType"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Leave Reason:</label>
+                        <p id="viewLeaveReason"></p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Start Date:</label>
+                        <p id="viewStartDate"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">End Date:</label>
+                        <p id="viewEndDate"></p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Number of Days:</label>
+                        <p id="viewNoDays"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Status:</label>
+                        <p id="viewStatus"></p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <!-- LEFT COLUMN -->
+                    <div class="col-md-6">
+                        <div id="viewRemarkSection" class="mb-3">
+                            <label class="form-label fw-bold">Remark:</label>
+                            <p id="viewRemark"></p>
+                        </div>
+
+                        <div id="viewMultiDayRemarkSection" class="mb-3" style="display:none;">
+                            <div class="mb-2">
+                                <label class="form-label fw-bold">Start Remark:</label>
+                                <p id="viewStartRemark"></p>
+                            </div>
+                            <div>
+                                <label class="form-label fw-bold">End Remark:</label>
+                                <p id="viewEndRemark"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN -->
+                    <div class="col-md-6">
+                        <div id="viewDocumentSection" class="mb-3" style="display:none;">
+                            <label class="form-label fw-bold">Documents:</label>
+                            <div id="viewDocumentContainer" class="row g-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3" id="viewRejectReasonSection" style="display:none;">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold text-danger">Reject Reason:</label>
+                        <p id="viewRejectReason" class="text-danger"></p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Applied Date:</label>
+                        <p id="viewCreatedAt"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Last Updated:</label>
+                        <p id="viewStatusUpdate"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT LEAVE MODAL -->
+<div class="modal fade" id="editLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form id="editLeaveForm" method="POST" enctype="multipart/form-data">
+            <div class="modal-content">
+
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit"></i> Edit Leave Request
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="editLeaveId" name="leave_id">
+
+                    <div class="mb-3">
+                        <label class="form-label">Leave Type</label>
+                        <select class="form-select" id="editLeaveType" name="leave_type" required>
+                            <option value="">Select Leave Type</option>
+                            <option>Annual Leave</option>
+                            <option>Sick Leave</option>
+                            <option>Unpaid Leave</option>
+                            <option>Special Leave</option>
+                            <option>Replacement Leave</option>
+                            <option>Suspended Leave</option>
+                            <option>HL Leave</option>
+                            <option>Socso Leave</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason</label>
+                        <input type="text" class="form-control" id="editLeaveReason" name="leave_reason"
+                            placeholder="eg. Business Trip" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="editStartDate" name="start_date">
+
+                            <div class="invalid-feedback d-block" id="editStartDateError" style="display:none !important;"></div>
+                            <small id="prevStartDate" class="text-muted"></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="editEndDate" name="end_date">
+
+                            <div class="invalid-feedback d-block" id="editEndDateError" style="display:none !important;"></div>
+                            <small id="prevEndDate" class="text-muted"></small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" id="editRemarkLabel">Remark</label>
+                        <select class="form-select" id="editRemark" name="remark">
+                            <option>Whole Day</option>
+                            <option>1st Half Day</option>
+                            <option>2nd Half Day</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" id="editStartRemarkLabel">Start Remark</label>
+                            <select class="form-select" id="editStartRemark" name="start_remark">
+                                <option>Whole Day</option>
+                                <option>1st Half Day</option>
+                                <option>2nd Half Day</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3" id="editEndRemarkField">
+                            <label class="form-label">End Remark</label>
+                            <select class="form-select" id="editEndRemark" name="end_remark">
+                                <option>Whole Day</option>
+                                <option>1st Half Day</option>
+                                <option>2nd Half Day</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">No. of Days</label>
+                        <input type="text" class="form-control" id="editNoDays" name="no_days" readonly>
+                        <div class="invalid-feedback d-block" id="editNoDaysError" style="display:none !important;"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label mt-2">Upload Documents</label>
+                        <p class="text-muted small mb-1">
+                            <i class="fas fa-info-circle"></i>
+                            Max 3 files &bull; 1MB per file (PDF) &bull; 3MB total &bull; PDF, JPG, PNG
+                        </p>
+
+                        <div id="editFileUploadArea"></div>
+
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="editAddFileBtn">
+                            <i class="fas fa-plus"></i> Add Another File
+                        </button>
+
+                        <div class="mt-2">
+                            <small class="text-muted">Total: <span id="editTotalSizeDisplay">0 MB</span> / 3MB</small>
+                            <div id="editTotalSizeError" class="text-danger small" style="display:none;"></div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                            Images will be automatically compressed on upload.
+                        </small>
+                    </div>
+
+                    <div class="mb-3" id="editViewDocumentDiv" style="display:none;">
+                        <label class="form-label fw-bold">Existing Documents</label>
+                        <div id="editExistingDocs" class="row g-2"></div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/leave_core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/leave_dashboard.js') }}"></script>
+{% endblock %}

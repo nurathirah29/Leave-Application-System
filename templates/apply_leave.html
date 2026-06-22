@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Apply Leave{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .section-title {
+        color: #343a40;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow-lg p-4">
+        <h3 class="text-center mb-4">Apply New Leave</h3>
+
+        <form id="leaveForm" action="/apply_leave" method="POST" enctype="multipart/form-data">
+
+            {% if can_apply_behalf %}
+            <div class="form-section">
+                <h5 class="section-title">Application Mode</h5>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="applyForSubordinate">
+                    <label class="form-check-label" for="applyForSubordinate">
+                        Apply On Behalf
+                    </label>
+                </div>
+
+                <div id="subordinateField" style="display:none;">
+                    <label class="form-label">Select Employee</label>
+                    <select name="requester_emp_no" class="form-select">
+                        <option value="">-- Select Employee --</option>
+                        {% for emp in subordinates %}
+                        <option value="{{ emp.Employee_no }}">
+                            {{ emp.Employee_no }} - {{ emp.Employee_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Leave Details -->
+            <div class="form-section">
+                <h5 class="section-title">Leave Details</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Leave Type</label>
+                        <select class="form-select" id="leaveType" name="leave_type" required>
+                            <option value="">Select Leave Type</option>
+                            <option>Annual Leave</option>
+                            <option>Sick Leave</option>
+                            <option>Unpaid Leave</option>
+                            <option>Special Leave</option>
+                            <option>Replacement Leave</option>
+                            <option>Suspended Leave</option>
+                            <option>HL Leave</option>
+                            <option>Socso Leave</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="leaveReason" name="reason"
+                            placeholder="eg. Business Trip" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date Selection -->
+            <div class="form-section">
+                <h5 class="section-title">Date Selection</h5>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="startDate" name="start_date" required>
+                        <div class="invalid-feedback d-block" id="startDateError" style="display:none !important;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="endDate" name="end_date" required>
+                        <div class="invalid-feedback d-block" id="endDateError" style="display:none !important;"></div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label d-none" id="remarkLabel">Remark</label>
+                        <label class="form-label d-none" id="startRemarkLabel">Start Day Remark</label>
+
+                        <select class="form-select d-none" id="remark" name="remark">
+                            <option>Whole Day</option>
+                            <option>1st Half Day</option>
+                            <option>2nd Half Day</option>
+                        </select>
+
+                        <select class="form-select d-none" id="startRemark" name="start_remark">
+                            <option>Whole Day</option>
+                            <option>1st Half Day</option>
+                            <option>2nd Half Day</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 d-none" id="endRemarkField">
+                        <label class="form-label">End Day Remark</label>
+                        <select class="form-select" id="endRemark" name="end_remark">
+                            <option>Whole Day</option>
+                            <option>1st Half Day</option>
+                            <option>2nd Half Day</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Number of Days</label>
+                    <input type="text" class="form-control" id="noDays" name="no_days" readonly>
+                    <div class="invalid-feedback d-block" id="noDaysError" style="display:none !important;"></div>
+                </div>
+            </div>
+
+            <!-- Contact & Documents -->
+            <div class="form-section">
+                <h5 class="section-title">Documents</h5>
+                <p class="text-muted small mb-2">
+                    <i class="fas fa-info-circle"></i>
+                    Maximum {{ max_files }} files &bull; {{ max_file_mb }}MB per file &bull; {{ max_total_mb }}MB total &bull;
+                    Allowed: PDF, JPG, PNG
+                </p>
+
+                <div id="fileUploadArea">
+                    <div class="mb-2 file-input-row" id="fileRow0">
+                        <div class="input-group">
+                            <input type="file"
+                                class="form-control file-input"
+                                name="upload_documents"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                data-index="0">
+                            <button type="button"
+                                    class="btn btn-outline-danger btn-remove-file"
+                                    data-index="0"
+                                    style="display:none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted file-size-hint" id="sizeHint0"></small>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="addFileBtn">
+                    <i class="fas fa-plus"></i> Add Another File
+                </button>
+
+                <div class="mt-2">
+                    <small class="text-muted">Total: <span id="totalSizeDisplay">0 MB</span> / {{ max_total_mb }}MB</small>
+                    <div id="totalSizeError" class="text-danger small" style="display:none;"></div>
+                </div>
+                <small class="text-muted d-block mt-1">
+                    <i class="fas fa-compress-arrows-alt"></i>
+                    Images will be automatically compressed on upload.
+                </small>
+                <small class="text-muted d-block">
+                    <i class="fas fa-info-circle"></i>
+                    Note: Original document must be submitted to HR.
+                </small>
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-success btn-lg px-5">
+                    Submit Leave Application
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/leave_core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/leave_apply.js') }}"></script>
+
+<script>
+    const checkbox = document.getElementById('applyForSubordinate');
+    const field    = document.getElementById('subordinateField');
+    if (checkbox) {
+        checkbox.addEventListener('change', function() {
+            field.style.display = this.checked ? 'block' : 'none';
+            if (!this.checked) field.querySelector('select').value = '';
+        });
+    }
+
+    const MAX_FILES       = {{ max_files }};
+    const MAX_FILE_BYTES  = {{ max_file_mb }} * 1024 * 1024;
+    const MAX_TOTAL_BYTES = {{ max_total_mb }} * 1024 * 1024;
+    let fileCount = 1;
+
+    function formatBytes(bytes) {
+        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    const PDF_MAX_BYTES   = 1 * 1024 * 1024;   // PDFs: hard 1MB (no compression)
+    const IMG_WARN_BYTES  = 5 * 1024 * 1024;   // Images: warn above 5MB (will be compressed)
+    const IMG_BLOCK_BYTES = 10 * 1024 * 1024;  // Images: hard block above 10MB
+
+    function isPdf(filename) {
+        return filename.toLowerCase().endsWith('.pdf');
+    }
+
+    function updateTotalSize() {
+        const inputs = document.querySelectorAll('.file-input');
+        let total = 0, hasError = false;
+
+        inputs.forEach(input => {
+            const hint = document.getElementById(`sizeHint${input.dataset.index}`);
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const size = file.size;
+                total += size;
+
+                if (isPdf(file.name)) {
+                    // PDFs cannot be compressed — hard block at 1MB
+                    if (size > PDF_MAX_BYTES) {
+                        hint.textContent = `⚠ ${formatBytes(size)} — PDF exceeds 1MB limit`;
+                        hint.className = 'text-danger file-size-hint';
+                        hasError = true;
+                    } else {
+                        hint.textContent = `PDF · ${formatBytes(size)}`;
+                        hint.className = 'text-muted file-size-hint';
+                    }
+                } else {
+                    // Images will be compressed server-side
+                    if (size > IMG_BLOCK_BYTES) {
+                        hint.textContent = `⚠ ${formatBytes(size)} — image too large (max 10MB before compression)`;
+                        hint.className = 'text-danger file-size-hint';
+                        hasError = true;
+                    } else if (size > IMG_WARN_BYTES) {
+                        hint.textContent = `${formatBytes(size)} — will be compressed ✓`;
+                        hint.className = 'text-warning file-size-hint';
+                    } else {
+                        hint.textContent = `${formatBytes(size)} — will be compressed ✓`;
+                        hint.className = 'text-muted file-size-hint';
+                    }
+                }
+            } else if (hint) {
+                hint.textContent = '';
+            }
+        });
+
+        document.getElementById('totalSizeDisplay').textContent = formatBytes(total);
+        const totalError = document.getElementById('totalSizeError');
+        // For total, use a generous pre-compression limit (images will shrink)
+        if (total > IMG_BLOCK_BYTES * MAX_FILES) {
+            totalError.textContent = `Total file size too large.`;
+            totalError.style.display = 'block';
+            hasError = true;
+        } else {
+            totalError.style.display = 'none';
+        }
+        return !hasError;
+    }
+
+    function bindFileRow(row, idx) {
+        row.querySelector('.file-input').addEventListener('change', updateTotalSize);
+        const removeBtn = row.querySelector('.btn-remove-file');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                row.remove();
+                fileCount--;
+                document.getElementById('addFileBtn').disabled = false;
+                updateTotalSize();
+            });
+        }
+    }
+
+    // Bind first row
+    const firstRow = document.getElementById('fileRow0');
+    firstRow.querySelector('.file-input').addEventListener('change', function() {
+        const btn = firstRow.querySelector('.btn-remove-file');
+        btn.style.display = this.files && this.files[0] ? 'block' : 'none';
+        updateTotalSize();
+    });
+    firstRow.querySelector('.btn-remove-file').addEventListener('click', function() {
+        firstRow.querySelector('.file-input').value = '';
+        this.style.display = 'none';
+        document.getElementById('sizeHint0').textContent = '';
+        updateTotalSize();
+    });
+
+    document.getElementById('addFileBtn').addEventListener('click', function() {
+        if (fileCount >= MAX_FILES) { this.disabled = true; return; }
+        const idx = fileCount;
+        const row = document.createElement('div');
+        row.className = 'mb-2 file-input-row';
+        row.id = `fileRow${idx}`;
+        row.innerHTML = `
+            <div class="input-group">
+                <input type="file" class="form-control file-input"
+                       name="upload_documents" accept=".pdf,.jpg,.jpeg,.png"
+                       data-index="${idx}">
+                <button type="button" class="btn btn-outline-danger btn-remove-file" data-index="${idx}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <small class="text-muted file-size-hint" id="sizeHint${idx}"></small>
+        `;
+        document.getElementById('fileUploadArea').appendChild(row);
+        bindFileRow(row, idx);
+        fileCount++;
+        if (fileCount >= MAX_FILES) this.disabled = true;
+    });
+
+    document.getElementById('leaveForm').addEventListener('submit', function(e) {
+        if (!updateTotalSize()) {
+            e.preventDefault();
+            alert('Please fix file size errors before submitting.');
+        }
+    });
+</script>
+{% endblock %}

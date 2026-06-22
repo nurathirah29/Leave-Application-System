@@ -1,0 +1,236 @@
+{% extends "hr_base.html" %}
+
+{% block title %}Manage Employee{% endblock %}
+{% block page_title %}Manage Employee{% endblock %}
+
+{% block content %}
+<div id="page-data"
+     data-is-edit="{{ 'True' if user is not none else 'False' }}"
+     data-has-user="{{ 'True' if user and user.get('has_user_account') else 'False' }}">
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-user"></i>
+            {% if user %}Edit Employee Information{% else %}New Employee Information{% endif %}
+        </h5>
+    </div>
+
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+
+                <!-- Employee Number -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="emp_no"
+                        value="{{ user.get('emp_no','') if user else '' }}"
+                        {% if user %}readonly{% else %}required{% endif %}>
+                </div>
+
+                <!-- Employee Name -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Employee Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="emp_name"
+                           value="{{ user.get('emp_name','') if user else '' }}" required>
+                </div>
+
+                <!-- Department -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Department <span class="text-danger">*</span></label>
+                    <select class="form-select" name="department" required>
+                        <option value="">Select Department</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}"
+                            {% if user and user.get('Department') == dept %}selected{% endif %}>
+                            {{ dept }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Section -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Section</label>
+                    <select class="form-select" id="section_control" name="section_control">
+                        <option value="">Select Section</option>
+                        {% for section in sections %}
+                        <option value="{{ section.section_id }}"
+                            {% if user and user.get('section_id') == section.section_id %}selected{% endif %}>
+                            {{ section.section_id }} — {{ section.section_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Date of Join -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date of Join <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="register_date"
+                           value="{{ user.get('Register_date').strftime('%Y-%m-%d') if user and user.get('Register_date') else '' }}"
+                           required>
+                </div>
+
+                <!-- Position -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Position</label>
+                    <input type="text" class="form-control" name="position"
+                           value="{{ user.get('position','') if user else '' }}">
+                </div>
+
+                <!-- Email -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email"
+                           value="{{ user.get('Email','') if user else '' }}">
+                </div>
+
+                <!-- Phone -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" class="form-control" name="phone"
+                           value="{{ user.get('Phone','') if user else '' }}">
+                </div>
+
+                <!-- Status -->
+                {% if user %}
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="Active" {% if user.get('Status') == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Delete" {% if user.get('Status') == 'Delete' %}selected{% endif %}>Delete</option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Checkbox -->
+                <div class="col-md-6 mb-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox"
+                               id="create_user" name="create_user" value="yes"
+                               {% if user and user.get('has_user_account') %}checked{% endif %}>
+                        <label class="form-check-label">Create / Edit User Account</label>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- USER ACCOUNT SECTION -->
+            <div id="user_fields" style="display:none;">
+                <hr>
+                <h6 class="text-primary">User Account Details</h6>
+
+                <!-- Existing Accounts -->
+                {% if user and user.user_accounts %}
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Existing Accounts</label>
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Company</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for acc in user.user_accounts %}
+                            <tr>
+                                <td>{{ acc.username }}</td>
+                                <td>{{ acc.company }}</td>
+                                <td>{{ acc.department }}</td>
+                                <td>{{ acc.roles }}</td>
+                                <td>{{ acc.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Add / Edit Account -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username"
+                            value="{{ user.user_accounts[0].username if user and user.user_accounts else '' }}">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="text" class="form-control" id="password" name="password"
+                            value="{{ user.user_accounts[0].password if user and user.user_accounts else '' }}">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" id="roles" name="roles">
+                            {% for role in ['Employee', 'Verifier', 'Approver', 'HR'] %}
+                            <option value="{{ role }}"
+                                {% if user and user.user_accounts and user.user_accounts[0].roles == role %}selected{% endif %}>
+                                {{ role }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <a href="/hr/users" class="btn btn-secondary btn-lg">Cancel</a>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const pageData = document.getElementById('page-data');
+    const isEdit = pageData.dataset.isEdit === 'True';
+    const hasUser = pageData.dataset.hasUser === 'True';
+
+    const createUser = document.getElementById('create_user');
+    const userFields = document.getElementById('user_fields');
+    const username   = document.getElementById('username');
+    const password   = document.getElementById('password');
+    const roles      = document.getElementById('roles');
+    const section    = document.getElementById('section_control');
+
+    function toggleUserFields() {
+        if (createUser.checked) {
+            userFields.style.display = 'block';
+            username.required = true;
+            password.required = !isEdit && !hasUser;
+        } else {
+            userFields.style.display = 'none';
+            username.required = false;
+            password.required = false;
+        }
+    }
+
+    function highlightSection() {
+        if (createUser.checked && roles.value === 'Verifier') {
+            section.classList.add('border', 'border-warning', 'rounded');
+        } else {
+            section.classList.remove('border', 'border-warning', 'rounded');
+        }
+    }
+
+    createUser.addEventListener('change', function () {
+        toggleUserFields();
+        highlightSection();
+    });
+
+    roles.addEventListener('change', highlightSection);
+
+    toggleUserFields();
+    highlightSection();
+});
+</script>
+{% endblock %}

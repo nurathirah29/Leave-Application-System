@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% block title %}Employee Leave History{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-history"></i> Employee Leave History</h5>
+    </div>
+
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="GET" class="row g-3 mb-3">
+
+            <!-- Employee -->
+            <div class="col-md-2">
+                <label class="form-label">Employee</label>
+                <select class="form-select" name="employee">
+                    <option value="">All</option>
+                    {% for sub in subordinates %}
+                    <option value="{{ sub.Employee_no }}"
+                        {% if filter_employee == sub.Employee_no %}selected{% endif %}>
+                        {{ sub.Employee_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status -->
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">All Status</option>
+                    {% for s in ['Pending', 'Acknowledged', 'Approved', 'Rejected', 'Cancel'] %}
+                    <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Leave Type -->
+            <div class="col-md-2">
+                <label class="form-label">Leave Type</label>
+                <select class="form-select" name="leave_type">
+                    <option value="">All Types</option>
+                    {% for lt in leave_types %}
+                    <option value="{{ lt }}" {% if filter_leave_type == lt %}selected{% endif %}>
+                        {{ lt }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Month -->
+            <div class="col-md-1">
+                <label class="form-label">Month</label>
+                <select class="form-select" name="month">
+                    <option value="">All</option>
+                    {% for i in range(1, 13) %}
+                    <option value="{{ i }}" {% if filter_month == i %}selected{% endif %}>
+                        {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i-1] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- From Date -->
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" class="form-control" name="date_from" value="{{ filter_date_from }}">
+            </div>
+
+            <!-- To Date -->
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" class="form-control" name="date_to" value="{{ filter_date_to }}">
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-md-1 d-flex align-items-end gap-1">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <a href="/employee_history" class="btn btn-secondary flex-fill" title="Reset">
+                    <i class="fas fa-redo"></i>
+                </a>
+            </div>
+        </form>
+
+        <!-- Table -->
+        {% if all_leaves %}
+
+        <div class="d-flex justify-content-end align-items-center mb-2">
+            <span class="text-muted">
+                Showing {{ ((current_page - 1) * per_page) + 1 }}
+                to {{ [current_page * per_page, total_leaves] | min }}
+                of {{ total_leaves }} entries
+            </span>
+            {% if filter_employee or filter_status or filter_leave_type or filter_month or filter_date_from or filter_date_to %}
+            <span class="badge bg-primary ms-2">
+                <i class="fas fa-filter"></i> Filtered
+            </span>
+            {% endif %}
+        </div>
+
+        {% set has_rejected = all_leaves | selectattr('status', 'equalto', 'Rejected') | list | length > 0 %}
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Employee</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Type</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in paginated_leaves %}
+                    <tr>
+                        <td><strong>{{ ((current_page - 1) * per_page) + loop.index }}</strong></td>
+                        <td>
+                            <div class="fw-semibold">{{ leave.requester_name }}</div>
+                            <small class="text-muted">{{ leave.requester }}</small>
+                        </td>
+                        <td>{{ leave.start_date }}</td>
+                        <td>{{ leave.end_date }}</td>
+                        <td><span class="badge bg-info">{{ leave.no_days }} day(s)</span></td>
+                        <td>{{ leave.leave_type }}</td>
+                        <td>{{ leave.leave_reason }}</td>
+                        <td>
+                            {% if leave.status == 'Approved' %}
+                                <span class="status-badge status-approved">Approved</span>
+                            {% elif leave.status == 'Rejected' %}
+                                <span class="status-badge status-rejected">Rejected</span>
+                            {% elif leave.status == 'Cancel' %}
+                                <span class="badge bg-secondary">Cancelled</span>
+                            {% elif leave.status == 'Pending' %}
+                                <span class="status-badge status-pending">Pending</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ leave.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary"
+                                    data-leave='{{ leave | tojson | safe }}'
+                                    onclick="openHistoryViewModal(JSON.parse(this.dataset.leave))"
+                                    title="View">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        {% set qs %}{% if filter_employee %}&employee={{ filter_employee }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_leave_type %}&leave_type={{ filter_leave_type }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}{% endset %}
+
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ current_page - 1 }}{{ qs }}">&laquo;</a>
+                </li>
+
+                {% if current_page > 3 %}
+                <li class="page-item"><a class="page-link" href="?page=1{{ qs }}">1</a></li>
+                {% if current_page > 4 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+                {% endif %}
+
+                {% for page_num in range([1, current_page - 2] | max, [total_pages, current_page + 2] | min + 1) %}
+                <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ page_num }}{{ qs }}">{{ page_num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if current_page < total_pages - 2 %}
+                {% if current_page < total_pages - 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+                <li class="page-item"><a class="page-link" href="?page={{ total_pages }}{{ qs }}">{{ total_pages }}</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ current_page + 1 }}{{ qs }}">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No leave records found.
+            {% if filter_employee or filter_status or filter_leave_type or filter_month or filter_date_from or filter_date_to %}
+                Try adjusting your filters or <a href="/employee_history">reset filters</a>.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div class="modal fade" id="historyViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-eye"></i> Leave Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Employee:</label>
+                        <p id="hvRequesterName"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Department:</label>
+                        <p id="hvDepartment"></p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Leave Type:</label>
+                        <p id="hvLeaveType"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Reason:</label>
+                        <p id="hvLeaveReason"></p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Start Date:</label>
+                        <p id="hvStartDate"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">End Date:</label>
+                        <p id="hvEndDate"></p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Number of Days:</label>
+                        <p id="hvNoDays"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Status:</label>
+                        <p id="hvStatus"></p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <!-- Single day: show Remark; multi-day: show Start/End remark -->
+                        <div id="hvRemarkSection">
+                            <label class="form-label fw-bold">Remark:</label>
+                            <p id="hvRemark"></p>
+                        </div>
+                        <div id="hvMultiRemarkSection" style="display:none;">
+                            <label class="form-label fw-bold">Start Remark:</label>
+                            <p id="hvStartRemark"></p>
+                            <label class="form-label fw-bold">End Remark:</label>
+                            <p id="hvEndRemark"></p>
+                        </div>
+                    </div>
+
+                    <!-- ✅ NEW: Documents column -->
+                    <div class="col-md-6" id="hvDocumentSection" style="display:none;">
+                        <label class="form-label fw-bold">Documents:</label>
+                        <div id="hvDocumentContainer" class="row g-2"></div>
+                    </div>
+                </div>
+
+                <!-- Reject reason -->
+                <div class="row mb-3" id="hvRejectReasonSection" style="display:none;">
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-danger">Reject Reason:</label>
+                        <p id="hvRejectReason" class="text-danger"></p>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Activity Log:</label>
+                        <ul class="list-group list-group-flush" id="hvActivityLog"></ul>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Applied Date:</label>
+                        <p id="hvCreatedAt"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Last Updated:</label>
+                        <p id="hvStatusUpdate"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openHistoryViewModal(leave) {
+    console.log('leave_id:', leave.leave_id, '| full object:', leave);
+    document.getElementById('hvRequesterName').textContent = leave.requester_name || '-';
+    document.getElementById('hvDepartment').textContent    = leave.department     || '-';
+    document.getElementById('hvLeaveType').textContent     = leave.leave_type     || '-';
+    document.getElementById('hvLeaveReason').textContent   = leave.leave_reason   || '-';
+    document.getElementById('hvStartDate').textContent     = leave.start_date     || '-';
+    document.getElementById('hvEndDate').textContent       = leave.end_date       || '-';
+    document.getElementById('hvNoDays').textContent        = leave.no_days ? leave.no_days + ' day(s)' : '-';
+    document.getElementById('hvCreatedAt').textContent     = leave.created_at     || '-';
+    document.getElementById('hvStatusUpdate').textContent  = leave.status_update  || '-';
+
+    // Status badge
+    const statusBadges = {
+        'Pending':      '<span class="status-badge status-pending">Pending</span>',
+        'Acknowledged': '<span class="status-badge status-acknowledged">Acknowledged</span>',
+        'Approved':     '<span class="status-badge status-approved">Approved</span>',
+        'Rejected':     '<span class="status-badge status-rejected">Rejected</span>',
+        'Cancel':       '<span class="badge bg-secondary">Cancelled</span>',
+    };
+    document.getElementById('hvStatus').innerHTML = statusBadges[leave.status] || leave.status;
+
+    // Remark — single vs multi-day
+    if (leave.start_date !== leave.end_date) {
+        document.getElementById('hvRemarkSection').style.display      = 'none';
+        document.getElementById('hvMultiRemarkSection').style.display = 'block';
+        document.getElementById('hvStartRemark').textContent = leave.start_remark || 'Whole Day';
+        document.getElementById('hvEndRemark').textContent   = leave.end_remark   || 'Whole Day';
+    } else {
+        document.getElementById('hvRemarkSection').style.display      = 'block';
+        document.getElementById('hvMultiRemarkSection').style.display = 'none';
+        document.getElementById('hvRemark').textContent = leave.remark || 'Whole Day';
+    }
+
+    // Reject reason
+    const rejectSection = document.getElementById('hvRejectReasonSection');
+    if (leave.status === 'Rejected' && leave.reject_reason) {
+        rejectSection.style.display = 'block';
+        document.getElementById('hvRejectReason').textContent = leave.reject_reason;
+    } else {
+        rejectSection.style.display = 'none';
+    }
+
+    // ✅ Documents — fetch from API (same as leave_dashboard)
+    const docSection    = document.getElementById('hvDocumentSection');
+    const docContainer  = document.getElementById('hvDocumentContainer');
+    docSection.style.display  = 'none';
+    docContainer.innerHTML    = '<small class="text-muted">Loading...</small>';
+
+    fetch(`/leave_documents/${leave.leave_id}`)
+        .then(r => r.json())
+        .then(docs => {
+            docContainer.innerHTML = '';
+            if (!docs.length) {
+                docSection.style.display = 'none';
+                return;
+            }
+            docSection.style.display = 'block';
+            docs.forEach(doc => {
+                const isPdf = doc.filename.toLowerCase().endsWith('.pdf');
+                const col   = document.createElement('div');
+                col.className = 'col-md-4 mb-2';
+                col.innerHTML = `
+                    <div class="border rounded p-2 text-center">
+                        ${isPdf
+                            ? `<i class="fas fa-file-pdf fa-2x text-danger mb-1"></i>`
+                            : `<img src="${doc.url}" class="img-fluid mb-1 rounded"
+                                    style="max-height:80px;object-fit:cover;">`
+                        }
+                        <div class="small text-truncate" title="${doc.original_name}">
+                            ${doc.original_name}
+                        </div>
+                        <div class="small text-muted">
+                            ${doc.file_size ? (doc.file_size / 1024).toFixed(0) + ' KB' : ''}
+                        </div>
+                        <a href="${doc.url}" target="_blank"
+                           class="btn btn-sm btn-outline-primary mt-1">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </div>`;
+                docContainer.appendChild(col);
+            });
+        })
+        .catch(() => { docSection.style.display = 'none'; });
+
+    // Activity Log (unchanged)
+    const log = document.getElementById('hvActivityLog');
+    log.innerHTML = '';
+
+    function statusBadge(status) {
+        const map = {
+            'Pending':      'badge bg-warning text-dark',
+            'Acknowledged': 'badge bg-info text-white',
+            'Approved':     'badge bg-success text-white',
+            'Rejected':     'badge bg-danger text-white',
+        };
+        return `<span class="${map[status] || 'badge bg-secondary text-white'}">${status || '-'}</span>`;
+    }
+
+    const steps = [];
+    if (leave.recommender_name  || leave.recommender_status)   steps.push({ label: 'Verifier 1', name: leave.recommender_name,   status: leave.recommender_status });
+    if (leave.recommender_2_name || leave.recommender_2_status) steps.push({ label: 'Verifier 2', name: leave.recommender_2_name, status: leave.recommender_2_status });
+    if (leave.approver_name)                                    steps.push({ label: 'Approver',   name: leave.approver_name,      status: leave.approver_status });
+
+    if (!steps.length) {
+        log.innerHTML = '<li class="list-group-item px-0 text-muted small">No activity recorded.</li>';
+    } else {
+        const flowLi  = document.createElement('li');
+        flowLi.className = 'list-group-item px-0 py-2';
+        const flowHtml = steps.map((step, idx) => `
+            <div class="d-flex align-items-center">
+                <div class="text-center" style="min-width:90px;">
+                    <div class="small fw-semibold" style="line-height:1.2;">${step.label}</div>
+                    <div class="small text-muted" style="font-size:0.72rem;">${step.name || '-'}</div>
+                    <div class="mt-1">${statusBadge(step.status)}</div>
+                </div>
+                ${idx < steps.length - 1 ? `<div class="px-1 text-muted"><i class="fas fa-chevron-right"></i></div>` : ''}
+            </div>`).join('');
+        flowLi.innerHTML = `<div class="d-flex align-items-start flex-wrap gap-1">${flowHtml}</div>`;
+        log.appendChild(flowLi);
+
+        if (leave.status === 'Rejected' && leave.reject_reason) {
+            const rejectLi = document.createElement('li');
+            rejectLi.className = 'list-group-item px-0 pt-2 pb-0 border-0';
+            rejectLi.innerHTML = `<div class="text-danger small"><i class="fas fa-comment-alt me-1"></i><strong>Reject Reason: ${leave.reject_reason}</strong></div>`;
+            log.appendChild(rejectLi);
+        }
+    }
+
+    new bootstrap.Modal(document.getElementById('historyViewModal')).show();
+}
+</script>
+{% endblock %}

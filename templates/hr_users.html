@@ -1,0 +1,207 @@
+{% extends "hr_base.html" %}
+
+{% block title %}Manage Employees{% endblock %}
+
+{% block page_title %}Manage Employees{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sticky-filters {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background-color: transparent;
+        padding-bottom: 0.5rem;
+    }
+
+    .table-scroll-container {
+        max-height: calc(100vh - 450px);
+        min-height: 400px;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid #dee2e6;
+        border-top: none;
+    }
+
+    .table-scroll-container table {
+        margin-bottom: 0;
+    }
+    
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f1f3f5;
+        cursor: pointer;
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .card-header-fixed {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table-scroll-container::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sticky-filters">
+    <!-- Search and Filter -->
+    <div class="card mb-2">
+        <form method="GET" action="/hr/users" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" class="form-control" name="search" 
+                        placeholder="Employee No. or Name" value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Department</label>
+                <select class="form-select" name="department">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>
+                        {{ dept }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Role</label>
+                <select class="form-select" name="role">
+                    <option value="">All Roles</option>
+                    <option value="Employee" {% if selected_role == 'Employee' %}selected{% endif %}>Employee</option>
+                    <option value="Verifier" {% if selected_role == 'Verifier' %}selected{% endif %}>Verifier</option>
+                    <option value="Approver" {% if selected_role == 'Approver' %}selected{% endif %}>Approver</option>
+                    <option value="HR" {% if selected_role == 'HR' %}selected{% endif %}>HR</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mb-3 d-flex justify-content-end align-items-center"> 
+    <div> 
+        <a href="/hr/user/add" class="btn btn-success"> 
+            <i class="fas fa-plus"></i> Add New Employee
+        </a>
+    </div>
+</div>
+
+<!-- Employee List -->
+<div class="card">
+    <div class="card-header card-header-fixed bg-primary text-white d-flex justify-content-between align-items-center py-1 px-3">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Employee List</h5>
+        <small class="text-muted">Showing <strong>{{ users|length }}</strong> results</small>
+    </div>
+
+    <!-- Table -->
+    <div class="table-scroll-container">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Emp No.</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Department</th>
+                    <th>Section</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td><strong>{{ user.emp_no }}</strong></td>
+                    <td>{{ user.emp_name }}</td>
+                    <td>{{ user.Position or '' }}</td>
+                    <td>{{ user.Department or '' }}</td>
+                    <td>{{ user.Section_id or '' }}</td>
+                    <td>{% if user.Email %}<a href="mailto:{{ user.Email }}">{{ user.Email }}</a>{% endif %}</td>
+                    <td>{{ user.Phone or '' }}</td>
+                    <td>
+                        {% if user.Status == 'Active' or user.Status is none %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">{{ user.Status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/hr/user/{{ user.emp_no }}" class="btn btn-sm btn-primary" title="Edit User">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                        <p class="text-muted mb-0">No employees found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            if (row.cells.length > 1) {
+                row.style.cursor = 'pointer';
+
+                row.addEventListener('click', function(e) {
+                    if (!e.target.closest('a') && !e.target.closest('button')) {
+                        const editBtn = this.querySelector('a[title="Edit User"]');
+                        if (editBtn) {
+                            window.location.href = editBtn.href;
+                        }
+                    }
+                });
+            }
+        });
+
+        const container = document.querySelector('.table-scroll-container');
+        if (container && container.scrollHeight > container.clientHeight) {
+            container.classList.add('has-scroll');
+        }
+    });
+</script>
+{% endblock %}

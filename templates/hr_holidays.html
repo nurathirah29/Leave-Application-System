@@ -1,0 +1,134 @@
+{% extends "hr_base.html" %}
+
+{% block title %}Manage Public Holidays{% endblock %}
+{% block page_title %}Public Holidays{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-calendar-star"></i> Public Holidays</h5>
+        <a href="/hr/holiday/add" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Holiday
+        </a>
+    </div>
+    
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="search" 
+                       placeholder="Search holiday name..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="year">
+                    <option value="">All Years</option>
+                    {% for y in range(current_year - 2, current_year + 3) %}
+                    <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <a href="/hr/holidays" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
+            </div>
+        </form>
+
+        <!-- Holidays Table -->
+        {% if holidays %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Holiday Name</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for holiday in holidays %}
+                    <tr>
+                        <td>
+                            <strong>{{ holiday.holiday_name }}</strong>
+                            {% if holiday.recommended_count > 0 %}
+                            <br>
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-exclamation-circle"></i> 
+                                {{ holiday.recommended_count }} Recommended Day(s)
+                            </span>
+                            {% if holiday.is_mandatory %}
+                            <span class="badge bg-danger">Mandatory</span>
+                            {% endif %}
+                            {% if holiday.auto_deduct %}
+                            <span class="badge bg-info">Auto-Deduct</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>{{ holiday.start_date.strftime('%d %b %Y') }}</td>
+                        <td>{{ holiday.end_date.strftime('%d %b %Y') }}</td>
+                        <td>
+                            <span class="badge bg-success">
+                                {{ (holiday.end_date - holiday.start_date).days + 1 }} PH day(s)
+                            </span>
+                            {% if holiday.recommended_count > 0 %}
+                            <br>
+                            <span class="badge bg-warning text-dark">
+                                + {{ holiday.recommended_count }} AL/UPL day(s)
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ holiday.description or '-' }}</td>
+                        <td>
+                            <a href="/hr/holiday/{{ holiday.holiday_id }}" 
+                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger delete-holiday-btn" 
+                                    data-holiday-id="{{ holiday.holiday_id }}"
+                                    data-holiday-name="{{ holiday.holiday_name|replace('"', '&quot;') }}"
+                                    title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No holidays found. 
+            <a href="/hr/holiday/add">Add your first public holiday</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Form (hidden) -->
+<form id="deleteForm" method="POST" style="display: none;">
+    <input type="hidden" name="holiday_id" id="deleteHolidayId">
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.delete-holiday-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const holidayId = this.getAttribute('data-holiday-id');
+                const holidayName = this.getAttribute('data-holiday-name');
+                
+                if (confirm(`Are you sure you want to delete "${holidayName}"?`)) {
+                    const form = document.getElementById('deleteForm');
+                    form.action = `/hr/holiday/delete/${holidayId}`;
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

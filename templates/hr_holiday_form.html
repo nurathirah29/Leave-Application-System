@@ -1,0 +1,203 @@
+{% extends "hr_base.html" %}
+
+{% block title %}{{ 'Edit' if holiday else 'Add' }} Public Holiday{% endblock %}
+{% block page_title %}{{ 'Edit' if holiday else 'Add' }} Public Holiday{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <!-- Holiday Name -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Holiday Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="holiday_name" 
+                           value="{{ holiday.holiday_name if holiday else '' }}" required>
+                </div>
+
+                <!-- Start Date -->
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="start_date" 
+                           value="{{ holiday.start_date if holiday else '' }}" required>
+                </div>
+
+                <!-- End Date -->
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">End Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="end_date" 
+                           value="{{ holiday.end_date if holiday else '' }}" required>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="2">{{ holiday.description if holiday else '' }}</textarea>
+            </div>
+
+            <hr>
+
+            <!-- Recommended Leave Configuration -->
+            <h6 class="mb-3">
+                <i class="fas fa-exclamation-triangle text-warning"></i> Recommended Leave Configuration
+            </h6>
+            
+            <div class="row">
+                <!-- Is Mandatory -->
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_mandatory" 
+                               id="isMandatory"
+                               {% if holiday and holiday.is_mandatory %}checked{% endif %}>
+                        <label class="form-check-label" for="isMandatory">
+                            <strong>Mandatory Leave</strong> 
+                            <i class="fas fa-info-circle text-muted" 
+                               title="Employees MUST take the recommended leave dates"></i>
+                        </label>
+                        <small class="d-block text-muted">Employees must take the recommended dates</small>
+                    </div>
+                </div>
+
+                <!-- Auto Deduct -->
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="auto_deduct" 
+                               id="autoDeduct"
+                               {% if holiday and holiday.auto_deduct %}checked{% endif %}>
+                        <label class="form-check-label" for="autoDeduct">
+                            <strong>Auto-Create Leave Requests</strong>
+                            <i class="fas fa-info-circle text-muted" 
+                               title="System will automatically create leave requests for all employees"></i>
+                        </label>
+                        <small class="d-block text-muted">Automatically deduct from employee leave balance</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommended Leave Dates (Dynamic Rows) -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <strong>Recommended Leave Dates</strong>
+                    <span class="text-muted">(Days when employees should take AL/UPL)</span>
+                </label>
+                
+                <div id="recommendedLeaveDates">
+                    {% if holiday and recommended_dates %}
+                        {% for rec_date in recommended_dates %}
+                        <div class="row mb-2 recommended-date-row">
+                            <div class="col-md-5">
+                                <input type="date" class="form-control" 
+                                       name="recommended_dates[]" 
+                                       value="{{ rec_date.leave_date }}" required>
+                            </div>
+                            <div class="col-md-5">
+                                <select class="form-select" name="recommended_priorities[]">
+                                    <option value="AL_FIRST" {% if rec_date.leave_priority == 'AL_FIRST' %}selected{% endif %}>
+                                        Annual Leave First (then Unpaid)
+                                    </option>
+                                    <option value="UPL_ONLY" {% if rec_date.leave_priority == 'UPL_ONLY' %}selected{% endif %}>
+                                        Unpaid Leave Only
+                                    </option>
+                                    <option value="AL_ONLY" {% if rec_date.leave_priority == 'AL_ONLY' %}selected{% endif %}>
+                                        Annual Leave Only
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-danger btn-sm remove-date-btn">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default empty row -->
+                        <div class="row mb-2 recommended-date-row">
+                            <div class="col-md-5">
+                                <input type="date" class="form-control" name="recommended_dates[]">
+                            </div>
+                            <div class="col-md-5">
+                                <select class="form-select" name="recommended_priorities[]">
+                                    <option value="AL_FIRST">Annual Leave First (then Unpaid)</option>
+                                    <option value="UPL_ONLY">Unpaid Leave Only</option>
+                                    <option value="AL_ONLY">Annual Leave Only</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-danger btn-sm remove-date-btn">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button type="button" id="addDateBtn" class="btn btn-sm btn-outline-primary mt-2">
+                    <i class="fas fa-plus"></i> Add Another Date
+                </button>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-lightbulb"></i> <strong>Example:</strong> 
+                For Chinese New Year (17-18 Feb are public holidays), you can add recommended leave dates 
+                for 16th Feb and 19th Feb. If "Auto-Create" is enabled, the system will automatically 
+                create leave requests for all employees based on the priority you set for each date.
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Holiday
+                </button>
+                <a href="/hr/holidays" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('recommendedLeaveDates');
+    const addBtn = document.getElementById('addDateBtn');
+
+    // Add new date row
+    addBtn.addEventListener('click', function() {
+        const newRow = document.createElement('div');
+        newRow.className = 'row mb-2 recommended-date-row';
+        newRow.innerHTML = `
+            <div class="col-md-5">
+                <input type="date" class="form-control" name="recommended_dates[]">
+            </div>
+            <div class="col-md-5">
+                <select class="form-select" name="recommended_priorities[]">
+                    <option value="AL_FIRST">Annual Leave First (then Unpaid)</option>
+                    <option value="UPL_ONLY">Unpaid Leave Only</option>
+                    <option value="AL_ONLY">Annual Leave Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger btn-sm remove-date-btn">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(newRow);
+    });
+
+    // Remove date row (event delegation)
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-date-btn')) {
+            const row = e.target.closest('.recommended-date-row');
+            // Only remove if there's more than one row
+            if (container.querySelectorAll('.recommended-date-row').length > 1) {
+                row.remove();
+            } else {
+                alert('At least one date row must remain. Clear the date if not needed.');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

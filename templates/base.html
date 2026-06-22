@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Leave Application{% endblock %}</title>
+    <link href="/static/css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        .navbar {
+            padding: 0;
+        }
+
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            padding: 20px 0;
+            position: fixed;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 20px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #fff !important;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+            padding: 15px 20px 5px 20px;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.05);
+            margin: 10px 20px;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.75);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin: 4px 12px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar .nav-link:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            transform: translateX(4px);
+        }
+
+        .sidebar .nav-link.active {
+            background: #2563eb;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+        }
+
+        .sidebar .badge {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .sidebar-user {
+            margin: 20px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+
+        .sidebar-user-name {
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .new-badge {
+            font-size: 0.65rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 25px;
+        }
+
+        @media (max-width: 991px) {
+            .sidebar {
+                left: -260px;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        .detail-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 16px;
+            height: 100%;
+        }
+        .detail-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        .detail-value {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #212529;
+        }
+        .detail-sub {
+            font-size: 0.78rem;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        .detail-section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #495057;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+        }
+        /* Activity flow */
+        .activity-flow {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 12px 0;
+        }
+        .activity-step {
+            display: flex;
+            align-items: center;
+        }
+        .activity-box {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px 14px;
+            text-align: center;
+            min-width: 110px;
+        }
+        .activity-box .step-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6c757d;
+            letter-spacing: .04em;
+        }
+        .activity-box .step-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #212529;
+            margin: 2px 0;
+        }
+        .activity-arrow {
+            color: #adb5bd;
+            font-size: 0.85rem;
+            padding: 0 6px;
+        }
+        .ld-detail-table td { padding: 4px 8px; vertical-align: middle; }
+        .ld-label  { font-size: 0.82rem; color: #6c757d; font-weight: 600; white-space: nowrap; width: 110px; }
+        .ld-sep    { color: #6c757d; width: 12px; }
+        .ld-value  { font-size: 0.88rem; color: #212529; }
+        .ld-section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #6c757d;
+        }
+
+        /* Activity step */
+        .ld-step-box {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 6px 14px;
+            text-align: center;
+            min-width: 100px;
+            background: #fff;
+        }
+        .ld-step-box .step-role  { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: #6c757d; }
+        .ld-step-box .step-name  { font-size: 0.8rem; font-weight: 500; color: #212529; margin: 2px 0; }
+
+        /* Doc thumbnails */
+        .ld-doc-thumb {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: box-shadow .15s, border-color .15s;
+        }
+        .ld-doc-thumb:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); border-color: #0d6efd; }
+        .ld-doc-thumb img   { max-height: 64px; object-fit: cover; border-radius: 4px; margin-bottom: 4px; }
+        .ld-doc-thumb .doc-name { font-size: 0.72rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ld-doc-thumb .doc-size { font-size: 0.68rem; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <button class="navbar-toggler sidebar-toggle" type="button">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <a class="navbar-brand d-lg-none" href="#">
+                <i class="fas fa-user-circle"></i> Dashboard
+            </a>
+
+            <div class="sidebar" id="navbarNav">
+                <a class="navbar-brand sidebar-brand" href="#">
+                    <i class="fas fa-building"></i> Leave Management
+                </a>
+
+                <ul class="navbar-nav flex-column">
+
+                    <!-- ── MY LEAVE ── -->
+                    {% if permissions and 'leave.view' in permissions %}
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-user"></i> My Leave
+                    </div>
+                    {% endif %}
+
+                    {% if session.employee_no %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/profile') %}active{% endif %}" href="/profile">
+                            <i class="fas fa-id-card me-2"></i> Profile
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- ── MANAGEMENT ──
+                        Visible to: Sub-verifier, Verifier (leave.acknowledge)
+                                    AND/OR Approver (leave.approve)
+                    -->
+                    {% if permissions and ('leave.acknowledge' in permissions or 'leave.approve' in permissions) %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-tasks"></i> Management
+                    </div>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/view_leave') %}active{% endif %}" href="/view_leave">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Manage Requests 
+                                </span>
+                                {% if has_pending_manage_leave %}
+                                <span class="badge bg-danger new-badge">New</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/employee_history') %}active{% endif %}" href="/employee_history">
+                            <i class="fas fa-history me-2"></i> Employee History
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- ── HR MANAGEMENT ── -->
+                    {% if permissions and ('user.manage' in permissions) %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-cog"></i> HR Management
+                    </div>
+
+                    {% if 'user.manage' in permissions %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/hr/dashboard') %}active{% endif %}" href="/hr/dashboard">
+                            <i class="fas fa-user-shield me-2"></i> HR Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- ── GENERAL ── -->
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-section-title">
+                        <i class="fas fa-globe"></i> General
+                    </div>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/calendar') %}active{% endif %}" href="/calendar">
+                            <i class="fas fa-calendar me-2"></i> Calendar
+                        </a>
+                    </li>
+
+                    <!-- ── USER INFO ── -->
+                    {% if session.employee_no %}
+                    <div class="sidebar-divider"></div>
+                    <div class="sidebar-user">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-user-circle fa-lg me-2 text-light"></i>
+                            <div>
+                                <div class="sidebar-user-name">{{ employee_name }}</div>
+                                <div>
+                                    {% for role in roles %}
+                                    <span class="badge bg-secondary me-1">{{ role }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </ul>
+            </div>
+        </div>
+
+        <div class="sidebar-overlay"></div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid main-content">
+        {% if session.employee_no %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div></div>
+            <div>
+                <strong class="me-3">
+                    <i class="fas fa-user-circle"></i> {{ employee_name }}
+                </strong>
+                <a href="/logout" class="btn btn-logout btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <strong>
+                        {% if category == 'success' %}<i class="fas fa-check-circle"></i>
+                        {% elif category == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+                        {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                        {% elif category == 'info' %}<i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </strong>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="/static/css/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const sidebarToggle = document.querySelector('.sidebar-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        const navLinks = document.querySelectorAll('.sidebar .nav-link');
+
+        if (sidebarToggle && sidebar && sidebarOverlay) {
+            sidebarToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+            });
+
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+            });
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 992) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                    }
+                });
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 992) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+
+        function _ldStatusBadge(status) {
+            const map = {
+                'Pending': 'status-badge status-pending',
+                'Acknowledged': 'status-badge status-acknowledged',
+                'Approved': 'status-badge status-approved',
+                'Rejected': 'status-badge status-rejected',
+                'Cancel': 'badge bg-secondary',
+            };
+            return `<span class="${map[status] || 'badge bg-light text-dark'}">${status || '—'}</span>`;
+        }
+
+        window.openLeaveDetailModal = function(leave) {
+            new bootstrap.Modal(document.getElementById('leaveDetailModal')).show();
+
+            const fields = [
+                'ld_requester_name','ld_department','ld_leave_type','ld_no_days',
+                'ld_start_date','ld_end_date','ld_remark','ld_start_remark','ld_end_remark',
+                'ld_leave_reason','ld_created_at','ld_status_update'
+            ];
+
+            fields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '—';
+            });
+
+            document.getElementById('ld_status').innerHTML       = '—';
+            document.getElementById('ld_activity_log').innerHTML = '<span class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</span>';
+            document.getElementById('ld_doc_grid').innerHTML     = '';
+            document.getElementById('ld_doc_empty').style.display   = 'none';
+            document.getElementById('ld_doc_loading').style.display = 'block';
+            document.getElementById('ld_reject_row').style.display  = 'none';
+
+            // Fetch full leave detail including verifier/approver names
+            fetch(`/leave_detail/${leave.leave_id}`)
+                .then(r => r.json())
+                .then(data => _ldPopulateModal(data))
+                .catch(() => {
+                    // Fallback to inline data if fetch fails
+                    _ldPopulateModal(leave);
+                });
+        };
+
+function _ldPopulateModal(leave) {
+            // Basic fields
+            document.getElementById('ld_requester_name').textContent = leave.requester_name || '—';
+            document.getElementById('ld_department').textContent     = leave.department     || '—';
+            document.getElementById('ld_leave_type').textContent     = leave.leave_type     || '—';
+            document.getElementById('ld_no_days').textContent        = leave.no_days ? leave.no_days + ' day(s)' : '—';
+            document.getElementById('ld_start_date').textContent     = leave.start_date     || '—';
+            document.getElementById('ld_end_date').textContent       = leave.end_date       || '—';
+            document.getElementById('ld_leave_reason').textContent   = leave.leave_reason   || '—';
+            document.getElementById('ld_created_at').textContent     = leave.created_at     || '—';
+            document.getElementById('ld_status_update').textContent  = leave.status_update  || '—';
+
+            // Remark: single vs multi-day
+            const isSingle = leave.start_date === leave.end_date;
+            document.getElementById('ld_remark_row').style.display       = isSingle ? '' : 'none';
+            document.getElementById('ld_multi_remark_row').style.display = isSingle ? 'none' : '';
+            document.getElementById('ld_remark').textContent       = leave.remark       || 'Whole Day';
+            document.getElementById('ld_start_remark').textContent = leave.start_remark || 'Whole Day';
+            document.getElementById('ld_end_remark').textContent   = leave.end_remark   || 'Whole Day';
+
+            // Status 
+            const displayStatus = leave.display_status || leave.status;
+            document.getElementById('ld_status').innerHTML = _ldStatusBadge(displayStatus);
+
+            // Reject reason 
+            const rejectRow = document.getElementById('ld_reject_row');
+            if ((displayStatus === 'Rejected' || leave.status === 'Rejected') && leave.reject_reason) {
+                rejectRow.style.display = '';
+                document.getElementById('ld_reject_reason').textContent = leave.reject_reason;
+            } else {
+                rejectRow.style.display = 'none';
+            }
+
+            // Activity Log 
+            const logEl = document.getElementById('ld_activity_log');
+            logEl.innerHTML = '';
+
+            const steps = [];
+            if (leave.recommender_name  || leave.recommender_status)
+                steps.push({ role: 'Verifier 1', name: leave.recommender_name,   status: leave.recommender_status });
+            if (leave.recommender_2_name || leave.recommender_2_status)
+                steps.push({ role: 'Verifier 2', name: leave.recommender_2_name, status: leave.recommender_2_status });
+            if (leave.approver_name || leave.approver_status)
+                steps.push({ role: 'Approver',   name: leave.approver_name,      status: leave.approver_status });
+
+            if (!steps.length) {
+                logEl.innerHTML = '<span class="text-muted small">No activity recorded.</span>';
+            } else {
+                steps.forEach((step, idx) => {
+                    const box = document.createElement('div');
+                    box.className = 'd-flex align-items-center';
+                    box.innerHTML = `
+                        <div class="ld-step-box">
+                            <div class="step-role">${step.role}</div>
+                            <div class="step-name">${step.name || '—'}</div>
+                            <div class="mt-1">${_ldStatusBadge(step.status)}</div>
+                        </div>
+                        ${idx < steps.length - 1
+                            ? `<i class="fas fa-chevron-right text-muted mx-2" style="font-size:.75rem;"></i>`
+                            : ''}`;
+                    logEl.appendChild(box);
+                });
+            }
+
+            // Documents 
+            const docGrid    = document.getElementById('ld_doc_grid');
+            const docLoading = document.getElementById('ld_doc_loading');
+            const docEmpty   = document.getElementById('ld_doc_empty');
+            docGrid.innerHTML    = '';
+            docEmpty.style.display   = 'none';
+            docLoading.style.display = 'block';
+
+            fetch(`/leave_documents/${leave.leave_id}`)
+                .then(r => r.json())
+                .then(docs => {
+                    docLoading.style.display = 'none';
+                    if (!docs.length) {
+                        docEmpty.style.display = 'block';
+                        return;
+                    }
+                    docs.forEach(doc => {
+                        const ext   = doc.filename.split('.').pop().toLowerCase();
+                        const isPdf = ext === 'pdf';
+                        const col   = document.createElement('div');
+                        col.className = 'col-6 col-md-3';
+                        col.innerHTML = `
+                            <div class="ld-doc-thumb"
+                                onclick="ldOpenDocViewer(${leave.leave_id}, '${doc.url}', '${doc.original_name}', '${doc.filename}', '${ext}')">
+                                ${isPdf
+                                    ? `<i class="fa-solid fa-file-pdf fa-2x text-danger d-block mb-1"></i>`
+                                    : `<img src="${doc.url}" alt="${doc.original_name}">`
+                                }
+                                <div class="doc-name" title="${doc.original_name}">${doc.original_name}</div>
+                                <div class="doc-size">${doc.file_size ? (doc.file_size/1024).toFixed(0)+' KB' : ''}</div>
+                                <div class="mt-1" style="font-size:0.72rem; color:#0d6efd;">
+                                    <i class="fas fa-expand-alt"></i> View
+                                </div>
+                            </div>`;
+                        docGrid.appendChild(col);
+                    });
+                })
+                .catch(() => {
+                    docLoading.style.display = 'none';
+                    docEmpty.style.display   = 'block';
+                });
+        };
+
+        let _ldImgScale = 1, _ldImgRot = 0, _ldPdfScale = 1;
+
+        function _ldShowPanel(which) {
+            document.getElementById('ldDocSpinner').style.display     = which === 'spinner'     ? 'flex'  : 'none';
+            document.getElementById('ldDocImageWrap').style.display   = which === 'image'       ? 'block' : 'none';
+            document.getElementById('ldDocPdfWrap').style.display     = which === 'pdf'         ? 'block' : 'none';
+            document.getElementById('ldDocUnsupported').style.display = which === 'unsupported' ? 'flex'  : 'none';
+            document.getElementById('ldImgControls').style.display    = which === 'image'       ? 'flex'  : 'none';
+            document.getElementById('ldPdfControls').style.display    = which === 'pdf'         ? 'flex'  : 'none';
+        }
+
+        // Called by both manage_request and employee_history doc buttons
+        window.openDocViewer = function(leaveId) {
+            _ldImgScale = 1; _ldImgRot = 0; _ldPdfScale = 1;
+            document.getElementById('ldDocImg').style.transform     = '';
+            document.getElementById('ldDocImg').src                 = '';
+            document.getElementById('ldDocPdf').src                 = '';
+            document.getElementById('ldDocPreviewName').textContent     = 'Loading…';
+            document.getElementById('ldDocPreviewFilename').textContent = '';
+
+            document.getElementById('ldDocSidebarLayout').style.display = 'none';
+            document.getElementById('ldDocEmpty').style.display         = 'none';
+            document.getElementById('ldDocSidebar').style.display       = 'none';
+            document.getElementById('ldDocSidebarList').innerHTML       = '';
+            _ldShowPanel('spinner');
+
+            document.getElementById('ldDocOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            fetch(`/leave_documents/${leaveId}`)
+                .then(r => r.json())
+                .then(docs => {
+                    if (!docs || !docs.length) {
+                        document.getElementById('ldDocSpinner').style.display = 'none';
+                        document.getElementById('ldDocEmpty').style.display   = 'flex';
+                        return;
+                    }
+
+                    document.getElementById('ldDocSidebarLayout').style.display = 'flex';
+
+                    if (docs.length > 1) {
+                        document.getElementById('ldDocSidebar').style.display = 'block';
+                        const list = document.getElementById('ldDocSidebarList');
+                        docs.forEach((doc, i) => {
+                            const ext   = doc.filename.split('.').pop().toLowerCase();
+                            const isImg = ['jpg','jpeg','png'].includes(ext);
+                            const icon  = isImg
+                                ? `<img src="${doc.url}" style="width:38px;height:38px;object-fit:cover;border-radius:4px;" alt="">`
+                                : `<i class="fa-solid fa-file-pdf fa-2x text-danger"></i>`;
+                            const item  = document.createElement('a');
+                            item.href   = '#';
+                            item.className = 'list-group-item list-group-item-action px-2 py-2' + (i === 0 ? ' active' : '');
+                            item.innerHTML = `
+                                <div class="d-flex align-items-center gap-2">
+                                    ${icon}
+                                    <div style="overflow:hidden;">
+                                        <div class="small fw-semibold text-truncate" title="${doc.original_name}">${doc.original_name}</div>
+                                        <div class="text-muted" style="font-size:11px;">${doc.file_size ? (doc.file_size/1024).toFixed(0)+' KB' : ''}</div>
+                                    </div>
+                                </div>`;
+                            item.onclick = e => {
+                                e.preventDefault();
+                                document.querySelectorAll('#ldDocSidebarList .list-group-item')
+                                    .forEach(el => el.classList.remove('active'));
+                                item.classList.add('active');
+                                _ldOpenFile(doc.url, doc.original_name, doc.filename,
+                                            doc.filename.split('.').pop().toLowerCase());
+                            };
+                            list.appendChild(item);
+                        });
+                    }
+
+                    const first = docs[0];
+                    _ldOpenFile(first.url, first.original_name, first.filename,
+                                first.filename.split('.').pop().toLowerCase());
+                })
+                .catch(() => _ldShowPanel('unsupported'));
+        };
+
+        // Called by the detail modal thumbnail clicks
+        window.ldOpenDocViewer = function(leaveId, directUrl, directName, directFilename, directExt) {
+            openDocViewer(leaveId);  // open normally, first doc loads automatically
+        };
+
+        function _ldOpenFile(url, displayName, filename, ext) {
+            _ldShowPanel('spinner');
+            document.getElementById('ldDocPreviewName').textContent     = displayName;
+            document.getElementById('ldDocPreviewFilename').textContent = filename;
+            document.getElementById('ldDocDownloadBtn').href            = url;
+            document.getElementById('ldDocFallback').href               = url;
+            _ldImgScale = 1; _ldImgRot = 0;
+
+            if (['jpg','jpeg','png','gif','webp','bmp'].includes(ext.toLowerCase())) {
+                const img   = document.getElementById('ldDocImg');
+                img.style.transform = '';
+                img.onload  = () => _ldShowPanel('image');
+                img.onerror = () => _ldShowPanel('unsupported');
+                img.src     = url + '?t=' + Date.now();
+            } else if (ext.toLowerCase() === 'pdf') {
+                const pdf   = document.getElementById('ldDocPdf');
+                pdf.onload  = () => _ldShowPanel('pdf');
+                pdf.onerror = () => _ldShowPanel('unsupported');
+                pdf.src     = url;
+            } else {
+                _ldShowPanel('unsupported');
+            }
+        }
+
+        function ldCloseDocViewer() {
+            document.getElementById('ldDocOverlay').style.display = 'none';
+            document.body.style.overflow = '';
+            document.getElementById('ldDocImg').src = '';
+            document.getElementById('ldDocPdf').src = '';
+            _ldImgScale = 1; _ldImgRot = 0; _ldPdfScale = 1;
+        }
+        function ldHandleOverlayClick(e) {
+            if (e.target === document.getElementById('ldDocOverlay')) ldCloseDocViewer();
+        }
+        function ldZoomImage(s) {
+            _ldImgScale = Math.min(5, Math.max(0.2, _ldImgScale + s));
+            document.getElementById('ldDocImg').style.transform = `scale(${_ldImgScale}) rotate(${_ldImgRot}deg)`;
+        }
+        function ldRotateImage(d) {
+            _ldImgRot += d;
+            document.getElementById('ldDocImg').style.transform = `scale(${_ldImgScale}) rotate(${_ldImgRot}deg)`;
+        }
+        function ldResetImage() {
+            _ldImgScale = 1; _ldImgRot = 0;
+            document.getElementById('ldDocImg').style.transform = 'scale(1) rotate(0deg)';
+        }
+        function ldZoomPdf(s) {
+            _ldPdfScale = Math.min(3, Math.max(0.5, _ldPdfScale + s));
+            const f = document.getElementById('ldDocPdf');
+            f.style.transform       = `scale(${_ldPdfScale})`;
+            f.style.transformOrigin = 'top center';
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') ldCloseDocViewer(); });
+    </script>
+
+    <div id="ldDocOverlay" onclick="ldHandleOverlayClick(event)"
+        style="display:none; position:fixed; inset:0; z-index:9999;
+                background:rgba(0,0,0,0.78); align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:10px; width:92vw; max-width:1100px;
+                    max-height:92vh; display:flex; flex-direction:column;
+                    overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+
+            <!-- Header -->
+            <div style="display:flex; align-items:center; padding:10px 16px;
+                        border-bottom:1px solid #dee2e6; gap:10px; flex-shrink:0;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.9rem; white-space:nowrap;
+                                overflow:hidden; text-overflow:ellipsis;">
+                        <i class="fa-solid fa-paperclip text-primary me-1"></i>
+                        <span id="ldDocPreviewName"></span>
+                    </div>
+                    <div id="ldDocPreviewFilename" style="font-size:0.72rem; color:#6c757d;"></div>
+                </div>
+                <div id="ldImgControls" style="display:none; gap:4px; flex-shrink:0;">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldZoomImage(0.15)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldZoomImage(-0.15)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldRotateImage(-90)"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldRotateImage(90)"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldResetImage()"><i class="fa-solid fa-arrows-rotate"></i></button>
+                </div>
+                <div id="ldPdfControls" style="display:none; gap:4px; flex-shrink:0;">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldZoomPdf(0.1)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="ldZoomPdf(-0.1)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                </div>
+                <a id="ldDocDownloadBtn" href="#" download class="btn btn-sm btn-outline-success" style="flex-shrink:0;">
+                    <i class="fa-solid fa-download"></i>
+                </a>
+                <button onclick="ldCloseDocViewer()" class="btn btn-sm btn-outline-danger" style="flex-shrink:0;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div style="flex:1; overflow:auto; min-height:0; display:flex; flex-direction:column;">
+
+                <div id="ldDocSidebarLayout" style="display:none; flex:1; min-height:0;">
+                    <div style="display:flex; width:100%; height:100%; min-height:500px;">
+
+                        <!-- Sidebar -->
+                        <div id="ldDocSidebar"
+                            style="width:220px; flex-shrink:0; border-right:1px solid #dee2e6;
+                                    overflow-y:auto; display:none;">
+                            <div id="ldDocSidebarList" class="list-group list-group-flush"></div>
+                        </div>
+
+                        <!-- Viewer -->
+                        <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+                            <div id="ldDocSpinner"
+                                style="display:flex; flex-direction:column; align-items:center;
+                                        justify-content:center; height:400px; gap:10px;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <span class="text-muted small">Loading...</span>
+                            </div>
+                            <div id="ldDocImageWrap"
+                                style="display:none; text-align:center; padding:20px;
+                                        background:#f8f9fa; flex:1; overflow:auto;">
+                                <img id="ldDocImg" src="" alt="preview"
+                                    style="max-width:100%; max-height:74vh; object-fit:contain;
+                                            border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.15);
+                                            transform-origin:center; transition:transform .2s ease;">
+                            </div>
+                            <div id="ldDocPdfWrap" style="display:none; height:80vh;">
+                                <iframe id="ldDocPdf" src="" style="width:100%; height:100%; border:none;"></iframe>
+                            </div>
+                            <div id="ldDocUnsupported"
+                                style="display:none; flex-direction:column; align-items:center;
+                                        justify-content:center; min-height:400px; gap:16px; padding:40px;">
+                                <i class="fa-solid fa-file fa-4x text-muted"></i>
+                                <p class="text-muted mb-0">Preview not available.</p>
+                                <a id="ldDocFallback" href="#" class="btn btn-primary" download>
+                                    <i class="fa-solid fa-download me-1"></i> Download to View
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No docs fallback -->
+                <div id="ldDocEmpty"
+                    style="display:none; flex-direction:column; align-items:center;
+                            justify-content:center; min-height:300px; gap:10px;">
+                    <i class="fa-solid fa-inbox fa-3x text-muted"></i>
+                    <p class="text-muted mb-0">No documents attached.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
