@@ -118,6 +118,6 @@ If the primary approver is on leave, backup approvers can pre-approve requests. 
 
 ---
 
-## License
+## Author
 
 Nur Athirah
